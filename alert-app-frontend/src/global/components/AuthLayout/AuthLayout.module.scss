@@ -1,0 +1,21 @@
+@use '../../../styles/mixins' as *;
+
+.wrapper {
+  width: 100%;
+  max-width: 28rem;
+  margin-inline: auto;
+}
+
+.card {
+  padding: spacing(3);
+
+  @include up(sm) {
+    padding: spacing(4);
+  }
+}
+
+.footer {
+  margin-block: spacing(2) 0;
+  text-align: center;
+  color: var(--mui-palette-text-secondary);
+}

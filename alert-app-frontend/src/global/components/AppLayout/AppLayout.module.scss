@@ -30,6 +30,29 @@
   text-decoration: none;
 }
 
+.nav {
+  display: flex;
+  gap: spacing(1);
+  margin-left: auto;
+}
+
+// Long names are cut off with "…"; the full name is in the menu
+.userName {
+  overflow: hidden;
+  max-width: 8rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  @include up(sm) {
+    max-width: 16rem;
+  }
+}
+
+.menuHeader {
+  margin: 0;
+  padding: spacing(1) spacing(2);
+}
+
 .content {
   flex: 1;
   outline: none; // focused only by the skip link, not by users clicking

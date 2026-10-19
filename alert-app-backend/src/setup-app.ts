@@ -2,6 +2,7 @@ import type { INestApplication } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import type { Env } from './config/env.js';
+import { ApiExceptionFilter } from './errors/api-exception.filter.js';
 
 /**
  * App-wide HTTP setup, shared by main.ts and the e2e tests
@@ -12,6 +13,9 @@ export function setupApp(app: INestApplication) {
 
   // All endpoints live under /api (e.g. /api/health)
   app.setGlobalPrefix('api');
+
+  // Every error response has the same translated format: { code, message, fieldErrors? }
+  app.useGlobalFilters(new ApiExceptionFilter());
 
   app.enableCors({
     origin: config.get('CORS_ORIGIN', { infer: true }),

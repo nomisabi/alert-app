@@ -5,7 +5,6 @@ import { Card, CardContent, Typography } from '@mui/material';
 import { useTranslation } from 'react-i18next';
 import { PageLayout } from '../../global/components/PageLayout/PageLayout';
 import styles from './HomePage.module.scss';
-import { useNotify } from '../../global/hooks/useNotify';
 
 const features = [
   { key: 'rules', Icon: TuneIcon },

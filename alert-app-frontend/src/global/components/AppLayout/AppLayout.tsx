@@ -1,11 +1,14 @@
 import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
-import { AppBar, Container, Toolbar, Typography } from '@mui/material';
+import { AppBar, Button, Container, Toolbar, Typography } from '@mui/material';
 import { useTranslation } from 'react-i18next';
 import { Link, Outlet } from 'react-router';
+import { useSession } from '../../hooks/useSession';
+import { AccountMenu } from './AccountMenu';
 import styles from './AppLayout.module.scss';
 
 export function AppLayout() {
-  const { t } = useTranslation();
+  const { t } = useTranslation(['common', 'auth']);
+  const { user, isPending } = useSession();
 
   return (
     <div className={styles.layout}>
@@ -21,6 +24,26 @@ export function AppLayout() {
               {t('app.name')}
             </Typography>
           </Link>
+          <nav className={styles.nav} aria-label={t('auth:nav.label')}>
+            {/* Nothing while the session loads, so the buttons don't flash */}
+            {!isPending && user && <AccountMenu user={user} />}
+            {!isPending && !user && (
+              <>
+                <Button component={Link} to="/login" color="inherit" size="small">
+                  {t('auth:nav.login')}
+                </Button>
+                <Button
+                  component={Link}
+                  to="/signup"
+                  color="inherit"
+                  variant="outlined"
+                  size="small"
+                >
+                  {t('auth:nav.signUp')}
+                </Button>
+              </>
+            )}
+          </nav>
         </Toolbar>
       </AppBar>
       {/* tabIndex -1: the skip link can move focus here */}

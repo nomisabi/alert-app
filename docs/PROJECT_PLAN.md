@@ -1,6 +1,6 @@
 # Alert App: Project Plan
 
-Last updated: 2026-10-19 (milestones re-planned as vertical slices, frontend folder structure decided)
+Last updated: 2026-10-19 (milestone 1 done: login)
 
 This document holds everything we have decided so far, and why. The full discussion is in
 [docs/claude-conversations/](claude-conversations/).
@@ -255,7 +255,8 @@ src/
 
 **Not now:**
 
-- **MSW**: see open questions (decide in milestone 1).
+- **MSW**: not needed. The backend is built before the frontend is connected (see
+  [Steps for every milestone](#steps-for-every-milestone)).
 - **Playwright**: enough testing tools for now. Revisit later.
 - **Redux / Zustand**: TanStack Query handles server state. React context covers the rest.
 
@@ -279,6 +280,8 @@ Libraries are installed in the phase that uses them, not before.
 ### Shared package (`@alert-app/shared`)
 
 - Domain types, Zod schemas and constants used by both apps. No React, NestJS or Node-only code.
+- Grouped by kind: `src/constants/`, `src/schemas/`, `src/types/`, `src/i18n/`, one file per topic inside
+  (e.g. `constants/auth.ts`, `schemas/auth.ts`). Details in `packages/shared/README.md`.
 - Built with `tsc` to `dist/`, because the backend cannot run TypeScript source. The root `postinstall` builds
   it. After changes: `npm run build -w @alert-app/shared` or keep `npm run dev:shared` running.
 
@@ -288,7 +291,7 @@ Libraries are installed in the phase that uses them, not before.
   `failed to connect to the docker API at npipe:////./pipe/dockerDesktopLinuxEngine`.
   Tip: Docker Desktop → Settings → General → "Start Docker Desktop when you sign in".
 - **PostgreSQL in Docker uses host port 5433**, because a local PostgreSQL install already uses 5432.
-- Redis on 6379. Backend on http://localhost:3000/api, frontend on http://localhost:5173.
+- Redis on 6379. Backend on http://localhost:3000/api, frontend on http://localhost:5174.
 
 ### Versions to revisit
 
@@ -313,22 +316,27 @@ meant deciding too much before seeing anything work.
 
 0. **Scope:** what the feature does, and what it explicitly leaves out for now.
 1. **Model:** Prisma models and fields.
-2. **API contract:** endpoints, request/response shapes, Zod schemas in `packages/shared`. Agreed before the
-   frontend, so the frontend can be built (with mocks) before the backend exists.
-3. **Frontend:** pages, components, hooks, forms, translations, loading/error/empty states. Everything responsive
-   (mobile first) and with basic accessibility (semantic HTML, labels, keyboard, focus, contrast).
+2. **API contract:** endpoints, request/response shapes, Zod schemas in `packages/shared`.
+3. **Frontend UI:** pages, components, forms (with validation), translations, loading/error/empty states, but
+   **no API calls yet**. Everything responsive (mobile first) and with basic accessibility (semantic HTML, labels,
+   keyboard, focus, contrast).
 4. **Backend:** modules, services, controllers, migrations.
-5. **Tests**
-6. **Wrap-up:** `npm run format`, update this plan, review by the developer, commit by the developer.
+5. **Connect:** the frontend calls the real backend. Click through the whole feature.
+6. **Tests**
+7. **Wrap-up:** `npm run format`, update this plan, review by the developer, commit by the developer.
+
+A milestone is not finished until it works against the real backend. Because the backend is built before the
+frontend is connected, **we don't mock the API during development** (no MSW). Frontend tests fake our own API
+functions (e.g. `global/utils/authApi`) with `vi.mock`, so the real hooks and query cache are tested too.
 
 ### Milestone list
 
 | #   | Milestone                    | Goal                                                                                     | Status        |
 | --- | ---------------------------- | ---------------------------------------------------------------------------------------- | ------------- |
 | 0   | Setup                        | Monorepo, frontend and backend scaffolds, shared package, Docker, tooling                | Done (commit) |
-| 0.5 | Frontend foundation          | Folder structure, error/404/home pages, loading, page layout, notifications              | **Next**      |
-| 1   | Login                        | Sign up, log in, log out, protected routes, user role (Better Auth). Form field wrappers | –             |
-| 2   | Admin: users                 | List users, enable/disable, change role                                                  | –             |
+| 0.5 | Frontend foundation          | Folder structure, error/404/home pages, loading, page layout, notifications              | Done (commit) |
+| 1   | Login                        | Sign up, log in, log out, protected routes, user role (Better Auth). Form field wrappers | Done (commit) |
+| 2   | Admin: users                 | List users, enable/disable, change role                                                  | **Next**      |
 | 3   | Alert rules                  | Create, edit, delete, list own rules. Final category list + NewsData.io mapping          | –             |
 | 4   | Email channel                | Connect an email address, send a test message (Resend)                                   | –             |
 | 5   | First real alerts            | NewsData.io → matcher → instant email (BullMQ)                                           | –             |
@@ -369,17 +377,127 @@ Not part of the setup and not a feature, but every milestone needs these pieces.
   - `Loading` waits 300 ms before showing, so fast loads don't flash a spinner.
 - [x] C. Page layout (title + optional action), Home page, 404 page polish
 - [x] D. Notifications: snackbar + `useNotify()` hook
-- [ ] E. Tests, format, plan update, review, commit
+- [x] E. Tests, format, plan update, review, commit
 
 Moved to milestone 1, where they are first needed: form field wrappers (MUI + React Hook Form) and the API
 client / Orval setup. Later milestones: empty state (3), confirm dialog (3), data table (2).
+
+### Milestone 1 steps (login)
+
+**Scope: included**
+
+- **Sign up** with display name, username, email, password and repeat password. "Repeat password" is checked only
+  in the frontend (Zod), and only one password is sent.
+- **Display name** (Better Auth's `name`): free text, not unique, shown in the AppBar.
+- **Username** is a **unique** handle. Uses Better Auth's `username` plugin: uniqueness is case-insensitive, the
+  original spelling is kept in `displayUsername`.
+- **Log in with email** and password, **log out**. After login the user goes back to the page they asked for
+  (`/login?redirectTo=...`), otherwise Home.
+- **Session in an httpOnly cookie** (Better Auth). Vite proxies `/api` to the backend in development, so the
+  browser sees one origin and cookies work without CORS setup.
+- **Role** `user | admin`. Sign-up always creates `user`. The role can't be set through sign-up input.
+- **First admin** created by a seed script (`npm run db:seed`, from `ADMIN_NAME`/`ADMIN_USERNAME`/`ADMIN_EMAIL`/
+  `ADMIN_PASSWORD` in `.env`). Running it again changes nothing.
+- **Frontend:** `/login` and `/signup` pages, `useSession()` (TanStack Query around Better Auth's client),
+  `ProtectedRoute` and `AdminRoute`, a placeholder `/admin` page, AppBar with display name + log out.
+  Form field wrappers (MUI + React Hook Form).
+- **Backend:** Better Auth mounted at `/api/auth/*`, `AuthGuard` (401) and `AdminGuard` (403), and
+  `GET /api/admin/ping` to prove the guards work.
+- **Form validation** (rules in `packages/shared`, so the backend enforces the same ones):
+
+  | Field           | Rules                                                                      | Checked                                       |
+  | --------------- | -------------------------------------------------------------------------- | --------------------------------------------- |
+  | Display name    | required, max 50 characters, trimmed                                       | in the browser                                |
+  | Username        | required, 6–30 characters, letters, numbers, `_` and `.`, trimmed          | in the browser                                |
+  | Username taken  | must not exist (case-insensitive)                                          | server: when leaving the field + on submit    |
+  | Email           | required, valid format, trimmed, lowercased                                | in the browser                                |
+  | Email taken     | must not exist                                                             | server: on submit only, shown under the field |
+  | Password        | required, 8–128 characters, at least one letter and one number             | in the browser, rules shown as hint text      |
+  | Repeat password | must match the password                                                    | in the browser                                |
+  | Login form      | valid email, password not empty (no password rules, they may change later) | in the browser                                |
+  - Errors appear when the user leaves a field, then update while typing (React Hook Form `mode: 'onTouched'`).
+  - On submit, focus moves to the first invalid field. The submit button shows a loading state while waiting.
+  - Error texts are linked to their field, so screen readers read them out (MUI `helperText`).
+
+- Error messages from Better Auth error codes, translated. Wrong login always says "Invalid email or password".
+
+**Scope: left out**
+
+- Email verification, password reset (milestone 9). Disabling users (milestone 2). Profile/settings, time zone
+  (milestone 6). Log in with username, Google login, 2FA (later). Rate limiting beyond Better Auth's defaults
+  (milestone 10).
+
+**Steps**
+
+- [x] 0. Scope
+- [x] 1. Model: `User`, `Session`, `Account`, `Verification` (Better Auth's tables) in `schema.prisma`, plus
+      `role` (enum `user | admin`) and `username`/`displayUsername` (username plugin). Migration runs in step 4.
+  - `username` is stored lowercased (unique), `displayUsername` keeps the original spelling. `name` is the display name. Password hashes are in `Account`, not `User`.
+  - Milestone 2: consider Better Auth's `admin` plugin (list users, set role, ban = disable).
+- [x] 2. API contract. Schemas and rules: `packages/shared/src/schemas/auth.ts`, constants: `constants/auth.ts`, types: `types/` (Zod messages are
+      i18n keys).
+
+  | Endpoint                               | Body                              | Success                           | Errors (body `{ code, message }`)                                                             |
+  | -------------------------------------- | --------------------------------- | --------------------------------- | --------------------------------------------------------------------------------------------- |
+  | `POST /api/auth/sign-up/email`         | `name, username, email, password` | 200 `{ token, user }` + cookie    | 422 `USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL`, 400 `USERNAME_IS_ALREADY_TAKEN`, 400 rule errors |
+  | `POST /api/auth/sign-in/email`         | `email, password`                 | 200 `{ token, user }` + cookie    | 401 `INVALID_EMAIL_OR_PASSWORD`                                                               |
+  | `POST /api/auth/sign-out`              | –                                 | 200 `{ success: true }`           | –                                                                                             |
+  | `GET /api/auth/get-session`            | –                                 | 200 `{ session, user }` or `null` | –                                                                                             |
+  | `POST /api/auth/is-username-available` | `username`                        | 200 `{ available: boolean }`      | 422 rule errors                                                                               |
+  | `GET /api/admin/ping` (ours)           | –                                 | 200 `{ ok: true }`                | 401 not logged in, 403 not admin                                                              |
+  - All `/api/auth/*` endpoints come from Better Auth. `POST /api/auth/sign-in/username` (username plugin) is
+    switched off, because login is by email only.
+  - **Error format (every endpoint, ours and Better Auth's):** `ApiError` in `packages/shared`
+
+    ```json
+    {
+      "code": "USERNAME_IS_ALREADY_TAKEN",
+      "message": "This username is already taken.",
+      "fieldErrors": [{ "field": "username", "message": "This username is already taken." }]
+    }
+    ```
+
+    - `message` is **translated by the backend**, in the language from the `Accept-Language` header (the frontend
+      sends the app's language; English only for now, English is the fallback).
+    - `fieldErrors` (optional): `field` is the request body field name (= the form field name), so the frontend
+      shows the message under that field. Without `fieldErrors` (e.g. wrong login, server error), the form shows
+      `message` above the submit button.
+    - Better Auth's errors are rewritten into this format in the backend, our own errors (guards, Zod validation,
+      unexpected errors) go through a global NestJS exception filter.
+    - Validation texts (`validation.json`) move to `packages/shared`, so the frontend and backend use the same texts.
+
+- [x] 3. Frontend UI: `/login`, `/signup`, `/admin` (placeholder), AppBar links, `FormTextField` (with password
+      show/hide), `AuthLayout`, `auth` + `validation` translations. Submitting only shows a message for now.
+- [x] 4. Backend: Better Auth 1.7 (`src/auth/create-auth.ts`), migration `auth`, seed script, `AuthGuard` +
+      `AdminGuard`, `GET /api/admin/ping`, global `ApiExceptionFilter` + backend i18n (i18next), validation texts moved
+      to `packages/shared`. Checked with curl: sign-up, validation errors, taken username/email, login, wrong
+      password, ping (401/403/200), log out, foreign Origin (403).
+  - Better Auth runs **behind our own controller** (`/api/auth/*`), not mounted directly on Express. The controller
+    validates the body with the shared Zod schemas (unknown fields like `role` are dropped) and rewrites Better
+    Auth's errors into `ApiError`.
+  - Better Auth's CSRF protection: POST requests from an origin other than `CORS_ORIGIN` get 403 `INVALID_ORIGIN`.
+  - Frontend dev server is fixed to port 5174 (`strictPort`).
+- [x] 5. Connect: Vite proxy (`/api` → `:3000`), `apiFetch` + `ApiRequestError`, `authApi.ts`, `useSession()`,
+      `setServerErrors()` (server errors under their field or above the button), username check on blur,
+      `ProtectedRoute` (`requireAdmin` for `/admin`), AppBar `AccountMenu` (name, admin link, log out),
+      `?redirectTo=` after login (only paths inside the app).
+  - We call the endpoints with our own small `fetch` wrapper instead of Better Auth's client library: our backend
+    has its own error format, and Orval can use the same wrapper later.
+- [x] 6. Tests: shared 12 (schemas, every error key has a text), backend 16 unit (i18n, `parseBody`, exception
+      filter) + 11 e2e (sign-up, validation, taken username/email, login, logout, guards, disabled endpoint, foreign
+      origin), frontend 44 (sign-up and login pages, `ProtectedRoute`, AppBar incl. the logout bug, `FormTextField`,
+      `apiFetch`).
+  - Frontend tests mock `authApi` for every test (`src/test/setup.ts`, default: logged out), test data in
+    `src/test/fixtures.ts`.
+  - Found while testing: Better Auth turns its origin check off when `NODE_ENV=test`, so it's now switched on
+    explicitly (`advanced.disableOriginCheck: false`). `apiFetch` no longer crashes on answers that aren't JSON.
+    `mutationFn` gets the values explicitly (TanStack Query passes a second argument).
+- [x] 7. Wrap-up: `npm run format`, plan updated, conversation saved in `docs/claude-conversations/1-login_*`, review and commit by the developer.
 
 ---
 
 ## Open questions
 
-- **MSW:** the frontend is now built before the backend in each milestone. Decide in milestone 1 whether to mock
-  the API with MSW or with simple stubs.
 - **Slack:** incoming webhook or Slack app (OAuth)? Decide in milestone 7 after research.
 - **Final category list** and its mapping to NewsData.io categories (milestone 3).
 - **Hosting and deployment** (e.g. Railway/Render/Fly.io for the backend, Vercel/Netlify for the frontend).

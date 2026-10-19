@@ -7,7 +7,7 @@ React app for Alert App (user screens and admin view). See the [root README](../
 ```bash
 # from the repo root
 npm install
-npm run dev:frontend        # http://localhost:5173
+npm run dev:frontend        # http://localhost:5174
 ```
 
 ## Scripts (run inside `alert-app-frontend/` or with `-w alert-app-frontend`)

@@ -15,7 +15,7 @@ The full plan and all decisions are in [docs/PROJECT_PLAN.md](docs/PROJECT_PLAN.
 - The developer is a frontend developer who is new to backend work. Explain backend concepts when introducing them.
 - Work step by step and stop after each step so it can be checked. Do not commit unless asked.
 - Work in vertical slices: one milestone (feature) at a time, following the "Steps for every milestone" in
-  docs/PROJECT_PLAN.md (scope → model → API contract → frontend → backend → tests → wrap-up).
+  docs/PROJECT_PLAN.md (scope → model → API contract → frontend UI → backend → connect → tests → wrap-up). No API mocks (no MSW).
 - **Frontend folders** (details in docs/PROJECT_PLAN.md): `src/global/{components,hooks,utils}` for anything used in
   2+ places, `src/pages/<Page>/` for a page and the parts only it uses (flat, no subfolders), `src/api/generated/`
   for Orval output. Ask before adding other top-level folders.

@@ -37,5 +37,13 @@
     "tryAgain": "Try again",
     "backHome": "Back to home",
     "details": "Error details (only visible in development)"
+  },
+  "admin": {
+    "title": "Admin",
+    "description": "Manage users, alert rules and news sources. User management comes in the next milestone."
+  },
+  "errors": {
+    "network": "Can't reach the server. Check your connection and try again.",
+    "unexpected": "Something went wrong. Please try again later."
   }
 }

@@ -10,13 +10,13 @@ export class HealthController {
 
   @Get()
   @ApiOkResponse({ type: HealthResponseDto, description: 'API and database are running' })
-  @ApiServiceUnavailableResponse({ type: HealthResponseDto, description: 'Database unreachable' })
+  @ApiServiceUnavailableResponse({ description: 'Database unreachable' })
   async check(): Promise<HealthResponseDto> {
     try {
       await this.prisma.$queryRaw`SELECT 1`;
       return { status: 'ok', database: 'up' };
     } catch {
-      throw new ServiceUnavailableException({ status: 'error', database: 'down' });
+      throw new ServiceUnavailableException();
     }
   }
 }

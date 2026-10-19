@@ -6,6 +6,19 @@ Types, Zod schemas and constants shared by `alert-app-frontend` and `alert-app-b
 import { APP_CATEGORIES, appCategorySchema, type AppCategory } from '@alert-app/shared';
 ```
 
+## Structure
+
+Files are grouped by kind. Inside each folder, one file per topic (`auth.ts`, `categories.ts`, ...).
+
+```
+src/
+  constants/   fixed values: limits, lists (USERNAME_MIN_LENGTH, APP_CATEGORIES, ...)
+  schemas/     Zod schemas (validation rules) and the types inferred from them (signUpFormSchema, Role, ...)
+  types/       TypeScript types without a schema (ApiError, AuthUser, ...)
+  i18n/        texts both apps use, one file per language (validation.en.ts)
+  index.ts     exports everything; the apps only import from '@alert-app/shared'
+```
+
 ## How it works
 
 - The source is in `src/`. Export everything public from `src/index.ts`.

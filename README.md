@@ -36,7 +36,7 @@ npm run db:up
 # 4. Start the backend (http://localhost:3000/api, docs at /api/docs)
 npm run dev:backend
 
-# 5. Start the frontend (http://localhost:5173)
+# 5. Start the frontend (http://localhost:5174)
 npm run dev:frontend
 ```
 
