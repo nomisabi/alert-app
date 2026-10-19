@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import type { Env } from './config/env.js';
 import { ApiExceptionFilter } from './errors/api-exception.filter.js';
+import { addApiSchemas } from './openapi/zod-openapi.js';
 
 /**
  * App-wide HTTP setup, shared by main.ts and the e2e tests
@@ -28,9 +29,15 @@ export function setupApp(app: INestApplication) {
     .setDescription('API for managing news alerts and notification channels')
     .setVersion('0.1.0')
     .build();
-  SwaggerModule.setup('api/docs', app, () => SwaggerModule.createDocument(app, openApiConfig), {
-    jsonDocumentUrl: 'api/docs-json',
-  });
+  // addApiSchemas: the shared Zod schemas become the spec's schemas (see openapi/zod-openapi.ts)
+  SwaggerModule.setup(
+    'api/docs',
+    app,
+    () => addApiSchemas(SwaggerModule.createDocument(app, openApiConfig)),
+    {
+      jsonDocumentUrl: 'api/docs-json',
+    },
+  );
 
   // Lets Prisma disconnect cleanly when the process stops (Ctrl+C)
   app.enableShutdownHooks();

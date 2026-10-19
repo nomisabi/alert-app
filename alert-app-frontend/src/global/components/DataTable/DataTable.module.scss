@@ -1,0 +1,67 @@
+@use '../../../styles/mixins' as *;
+
+.empty {
+  padding: spacing(3) 0;
+  text-align: center;
+}
+
+// Rows of the previous page stay visible (dimmed) while the next page loads
+.fetching {
+  opacity: 0.6;
+  transition: opacity 150ms;
+}
+
+.tableContainer {
+  border: 1px solid var(--mui-palette-divider);
+  border-radius: var(--mui-shape-borderRadius);
+  background-color: var(--mui-palette-background-paper);
+}
+
+.cards {
+  display: grid;
+  gap: spacing(1.5);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  @include up(sm) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.cardHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: spacing(1);
+  margin-bottom: spacing(1);
+}
+
+.cardTitle {
+  min-width: 0;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.fields {
+  display: grid;
+  gap: spacing(0.75);
+  margin: 0;
+}
+
+.field {
+  display: grid;
+  grid-template-columns: minmax(6rem, auto) 1fr;
+  gap: spacing(1);
+
+  dt {
+    color: var(--mui-palette-text-secondary);
+  }
+
+  dd {
+    margin: 0;
+    min-width: 0;
+    // Long emails wrap instead of widening the card
+    overflow-wrap: anywhere;
+  }
+}

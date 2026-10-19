@@ -49,8 +49,8 @@ describe('LoginPage', () => {
 
     const { router } = await logIn('/login?redirectTo=%2Fadmin');
 
-    expect(await screen.findByRole('heading', { name: 'Admin' })).toBeInTheDocument();
-    expect(router.state.location.pathname).toBe('/admin');
+    expect(await screen.findByRole('heading', { name: 'Users' })).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe('/admin/users');
   });
 
   it.each(['https://evil.example', '//evil.example'])(

@@ -1,5 +1,5 @@
 import { Navigate, Outlet, useLocation } from 'react-router';
-import { useSession } from '../../hooks/useSession';
+import { useSession } from '../../../api/auth/useSession';
 import { Loading } from '../Loading/Loading';
 
 interface ProtectedRouteProps {

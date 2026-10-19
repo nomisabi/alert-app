@@ -7,7 +7,7 @@ import {
 } from '@alert-app/shared';
 import { betterAuth } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
-import { username } from 'better-auth/plugins';
+import { admin, username } from 'better-auth/plugins';
 import type { PrismaClient } from '../generated/prisma/client.js';
 
 interface CreateAuthOptions {
@@ -38,14 +38,12 @@ export function createAuth({ prisma, secret, baseURL, trustedOrigins }: CreateAu
       minPasswordLength: PASSWORD_MIN_LENGTH,
       maxPasswordLength: PASSWORD_MAX_LENGTH,
     },
-    user: {
-      additionalFields: {
-        // input: false → can't be set through sign-up, so nobody can make themselves admin
-        role: { type: 'string', required: false, defaultValue: 'user', input: false },
-      },
-    },
     plugins: [
       username({ minUsernameLength: USERNAME_MIN_LENGTH, maxUsernameLength: USERNAME_MAX_LENGTH }),
+      // Adds `role` (can't be set through sign-up, so nobody can make themselves admin) and
+      // `banned` (= disabled). Blocks login for banned users with the code BANNED_USER.
+      // Its own /admin/* endpoints are not reachable (see AuthController): we have our own.
+      admin({ defaultRole: 'user', adminRoles: ['admin'] }),
     ],
     // Login is by email only
     disabledPaths: ['/sign-in/username'],

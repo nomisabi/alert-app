@@ -165,17 +165,17 @@ describe('Auth (e2e)', () => {
   });
 
   it('protects the admin endpoint: 401 logged out, 403 for users, 200 for admins', async () => {
-    await browser().get('/api/admin/ping').expect(401, {
+    await browser().get('/api/admin/users').expect(401, {
       code: 'UNAUTHORIZED',
       message: 'Please log in to continue.',
     });
 
     const agent = await signUp('admin');
-    await agent.get('/api/admin/ping').expect(403);
+    await agent.get('/api/admin/users').expect(403);
 
     // Like the seed script: the role is only set directly in the database
     await prisma.user.update({ where: { email: emailFor('admin') }, data: { role: 'admin' } });
-    await agent.get('/api/admin/ping').expect(200, { ok: true });
+    await agent.get('/api/admin/users').expect(200);
   });
 
   it('has no "log in with username" endpoint', async () => {

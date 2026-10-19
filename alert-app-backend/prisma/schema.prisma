@@ -14,8 +14,8 @@ datasource db {
 // Auth (milestone 1)
 // The User, Session, Account and Verification models are the tables Better Auth
 // needs (https://better-auth.com/docs/concepts/database). Field names must match
-// what Better Auth expects. Our own fields: role, plus username/displayUsername
-// from Better Auth's username plugin.
+// what Better Auth expects. Extra fields come from Better Auth's plugins: username/
+// displayUsername (username plugin), role/banned/banReason/banExpires/impersonatedBy (admin plugin).
 // ---------------------------------------------------------------------------
 
 enum Role {
@@ -35,6 +35,11 @@ model User {
   // The username as the user typed it (set automatically by the plugin).
   displayUsername String
   role            Role      @default(user)
+  // Admin plugin (milestone 2): "banned" = disabled by an admin. Sessions are deleted and
+  // login is blocked. banReason/banExpires are required by the plugin but not used yet.
+  banned          Boolean   @default(false)
+  banReason       String?
+  banExpires      DateTime?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
   sessions        Session[]
@@ -45,15 +50,17 @@ model User {
 
 // One row per logged-in browser. The browser's cookie holds the token.
 model Session {
-  id        String   @id
-  token     String   @unique
-  expiresAt DateTime
-  ipAddress String?
-  userAgent String?
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id             String   @id
+  token          String   @unique
+  expiresAt      DateTime
+  ipAddress      String?
+  userAgent      String?
+  // Admin plugin: set when an admin logs in as another user. Required by the plugin, not used.
+  impersonatedBy String?
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   @@index([userId])
   @@map("session")

@@ -1,26 +1,19 @@
 import { Link as MuiLink } from '@mui/material';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Link, Navigate, useSearchParams } from 'react-router';
+import { useSession } from '../../api/auth/useSession';
+import { useSignIn } from '../../api/login/useSignIn';
 import { AuthLayout } from '../../global/components/AuthLayout/AuthLayout';
-import { sessionQueryKey, useSession } from '../../global/hooks/useSession';
-import { signIn } from '../../global/utils/authApi';
 import { LoginForm } from './LoginForm';
 
 export function LoginPage() {
   const { t } = useTranslation('auth');
   const { user } = useSession();
   const [searchParams] = useSearchParams();
-  const queryClient = useQueryClient();
+  const login = useSignIn();
 
-  const login = useMutation({
-    // Not `mutationFn: signIn`: TanStack Query passes a second argument we don't want to send
-    mutationFn: (values: Parameters<typeof signIn>[0]) => signIn(values),
-    // Reload the session: `user` is then set and the <Navigate> below sends the user on
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: sessionQueryKey }),
-  });
-
-  // Logged in (already, or just now): go back to the page that asked for login, or Home
+  // Logged in (already, or just now): go back to the page that asked for login, or Home.
+  // After a successful login useSignIn reloads the session, so `user` gets set here.
   if (user) return <Navigate to={safeRedirect(searchParams.get('redirectTo'))} replace />;
 
   return (

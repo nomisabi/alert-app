@@ -25,17 +25,38 @@ interface ApiFetchOptions {
  * so the browser sends the session cookie automatically.
  * Sends the app's language, so error messages come back translated.
  */
-export async function apiFetch<T>(path: string, { method = 'GET', json }: ApiFetchOptions = {}) {
+export function apiFetch<T>(path: string, { method = 'GET', json }: ApiFetchOptions = {}) {
+  return request<T>(path, {
+    method,
+    headers: json === undefined ? {} : { 'Content-Type': 'application/json' },
+    body: json === undefined ? undefined : JSON.stringify(json),
+  });
+}
+
+/**
+ * The same, in the shape Orval's generated code calls it (see orval.config.ts):
+ * the generated functions build the URL and the fetch options, this sends them.
+ */
+export function orvalFetch<T>(url: string, init: RequestInit): Promise<T> {
+  return request<T>(url, init);
+}
+
+/**
+ * Orval reads these two names from this file: the error type of the generated hooks, and request
+ * bodies as-is. Every failed request throws ApiRequestError, whatever error the spec describes
+ * (the `extends` only uses the parameter, which Orval passes but we don't need).
+ */
+export type ErrorType<Error> = Error extends unknown ? ApiRequestError : ApiRequestError;
+export type BodyType<Body> = Body;
+
+async function request<T>(path: string, init: RequestInit): Promise<T> {
+  // new Headers(): init.headers can be a plain object or a Headers instance
+  const headers = new Headers(init.headers);
+  headers.set('Accept-Language', i18n.language);
+
   let response: Response;
   try {
-    response = await fetch(path, {
-      method,
-      headers: {
-        'Accept-Language': i18n.language,
-        ...(json === undefined ? {} : { 'Content-Type': 'application/json' }),
-      },
-      body: json === undefined ? undefined : JSON.stringify(json),
-    });
+    response = await fetch(path, { ...init, headers });
   } catch {
     // No answer at all (offline, backend down): there is no server message to show
     throw new ApiRequestError(0, { code: 'NETWORK_ERROR', message: i18n.t('errors.network') });

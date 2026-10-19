@@ -17,8 +17,11 @@ The full plan and all decisions are in [docs/PROJECT_PLAN.md](docs/PROJECT_PLAN.
 - Work in vertical slices: one milestone (feature) at a time, following the "Steps for every milestone" in
   docs/PROJECT_PLAN.md (scope → model → API contract → frontend UI → backend → connect → tests → wrap-up). No API mocks (no MSW).
 - **Frontend folders** (details in docs/PROJECT_PLAN.md): `src/global/{components,hooks,utils}` for anything used in
-  2+ places, `src/pages/<Page>/` for a page and the parts only it uses (flat, no subfolders), `src/api/generated/`
-  for Orval output. Ask before adding other top-level folders.
+  2+ places, `src/pages/<Page>/` for a page and the components only it uses (flat, no subfolders),
+  `src/api/<area>/` for TanStack Query hooks (one file per query/mutation, kebab-case area folders, no
+  `useQuery`/`useMutation` inside components), `src/types/<area>/` for page types and
+  `src/utils/<area>/` for page helpers like table columns (not inside page `.tsx` files), `src/api/generated/` for Orval output.
+  Ask before adding other top-level folders.
 
 ## Rules
 

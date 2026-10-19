@@ -46,6 +46,10 @@ export class AuthController {
   @All('*path')
   async handle(@Req() req: Request, @Res() res: Response) {
     const authPath = req.path.slice(AUTH_BASE_PATH.length);
+    // The admin plugin's endpoints (/admin/list-users, /admin/ban-user, ...) stay closed:
+    // admins use our own /api/admin/* endpoints, so there is only one way in, with our rules.
+    if (authPath.startsWith('/admin/')) throw new ApiException(HttpStatus.NOT_FOUND, 'NOT_FOUND');
+
     const hasBody = req.method !== 'GET' && req.method !== 'HEAD';
     const schema = bodySchemas[authPath];
     const body: unknown = hasBody && schema ? parseBody(schema, req.body) : req.body;

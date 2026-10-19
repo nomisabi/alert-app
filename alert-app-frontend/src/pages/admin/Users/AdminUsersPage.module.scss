@@ -1,0 +1,17 @@
+@use '../../../styles/mixins' as *;
+
+.search {
+  width: 100%;
+  margin-bottom: spacing(2);
+
+  @include up(sm) {
+    max-width: 24rem;
+  }
+}
+
+.name {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: spacing(1);
+}

@@ -1,6 +1,6 @@
 # Alert App: Project Plan
 
-Last updated: 2026-10-19 (milestone 1 done: login)
+Last updated: 2026-10-20 (milestone 2 done: admin users)
 
 This document holds everything we have decided so far, and why. The full discussion is in
 [docs/claude-conversations/](claude-conversations/).
@@ -203,18 +203,18 @@ Production Redis: a managed service (e.g. Upstash, Redis Cloud) or the hosting p
 
 ### Frontend
 
-| Area         | Choice                                                              |
-| ------------ | ------------------------------------------------------------------- |
-| Build        | Vite 8 + TypeScript                                                 |
-| UI           | React 19, MUI 9 (theme = design tokens) + SASS modules (layout)     |
-| Routing      | React Router 8 (everything imports from `react-router`)             |
-| Server state | TanStack Query 5                                                    |
-| API client   | Orval: generates TanStack Query hooks from the OpenAPI spec (later) |
-| Forms        | React Hook Form + Zod 4 (`@hookform/resolvers` 5.9)                 |
-| i18n         | i18next + react-i18next (type-checked keys)                         |
-| Dates        | date-fns 4 + @date-fns/tz (**mandatory**, enforced by ESLint)       |
-| Tests        | Vitest 5 + React Testing Library + jsdom                            |
-| Code quality | ESLint + Prettier                                                   |
+| Area         | Choice                                                          |
+| ------------ | --------------------------------------------------------------- |
+| Build        | Vite 8 + TypeScript                                             |
+| UI           | React 19, MUI 9 (theme = design tokens) + SASS modules (layout) |
+| Routing      | React Router 8 (everything imports from `react-router`)         |
+| Server state | TanStack Query 5                                                |
+| API client   | Orval 8: generates TanStack Query hooks from the OpenAPI spec   |
+| Forms        | React Hook Form + Zod 4 (`@hookform/resolvers` 5.9)             |
+| i18n         | i18next + react-i18next (type-checked keys)                     |
+| Dates        | date-fns 4 + @date-fns/tz (**mandatory**, enforced by ESLint)   |
+| Tests        | Vitest 5 + React Testing Library + jsdom                        |
+| Code quality | ESLint + Prettier                                               |
 
 **MUI + SASS, not Tailwind.** Tailwind overlaps with MUI's styling (theme/`sx` vs. utility classes), its reset
 clashes with MUI's `CssBaseline`, and colors/spacing would be defined twice. Tailwind fits headless libraries
@@ -230,25 +230,37 @@ clashes with MUI's `CssBaseline`, and colors/spacing would be defined twice. Tai
 src/
   app/            app-wide wiring: App, AppProviders, routes, router, queryClient
   global/         everything used in 2 or more places
-    components/     AppLayout, Loading, PageLayout, ...
-    hooks/          useNotify, useSession, ...
-    utils/          date.ts, ...
-  pages/          one folder per page
+    components/     AppLayout, Loading, PageLayout, DataTable, ConfirmDialog, ...
+    hooks/          useNotify, ...
+    utils/          date.ts, apiFetch.ts, authApi.ts, ...
+  pages/          one folder per page: components only
     Login/
       LoginPage.tsx       the page itself
       LoginForm.tsx       smaller parts used only by this page (flat, no subfolders)
       LoginPage.test.tsx
     admin/          admin pages grouped in one folder (Users/, Rules/, ...)
-  api/
-    generated/    Orval output, never edited by hand
+  api/            TanStack Query hooks, one file per query/mutation, one folder per area
+    auth/           useSession, useSignOut (not tied to one page)
+    login/          useSignIn
+    sign-up/        useSignUp, useCheckUsername
+    admin/          useAdminUsers, useUpdateAdminUser
+    generated/      Orval output, never edited by hand
+  types/          types/interfaces of the pages, same areas as api/ (admin/users.ts, login/loginForm.ts, ...)
+  utils/          page helpers (functions), same areas (admin/userColumns.tsx, ...). Helpers used in 2+ places: global/utils/
   i18n/           i18next setup + translations (one file per area: common.json, auth.json, ...)
   theme/          MUI theme
   styles/         global SASS + mixins
   test/           test setup + render helpers
 ```
 
-- **Rule:** code used by one page lives in that page's folder. As soon as a second place uses it, it moves to
+- **Rule:** components used by one page live in that page's folder. As soon as a second place uses one, it moves to
   `global/`.
+- **No data fetching in components** (decided in milestone 2): every `useQuery`/`useMutation` is a hook in
+  `api/<area>/` (kebab-case folders), one file each. The hook does the data work (request, cache invalidation),
+  the component does the UI work (messages, navigation, closing dialogs) through `mutate(values, { onSuccess })` or
+  `await mutateAsync()`.
+- **Page types and helpers are not inside `.tsx` page files:** they go to `types/<area>/` and
+  `utils/<area>/` (e.g. the table columns builder). Small global components keep their props interface in the component file (easier to read).
 - Related pages can be grouped in a folder (like `admin/`) when it helps, but this is not required.
 - Tests sit next to the file they test.
 - The developer prefers type-based folders (`global/` + `pages/`) to a feature-based `features/` folder.
@@ -336,8 +348,8 @@ functions (e.g. `global/utils/authApi`) with `vi.mock`, so the real hooks and qu
 | 0   | Setup                        | Monorepo, frontend and backend scaffolds, shared package, Docker, tooling                | Done (commit) |
 | 0.5 | Frontend foundation          | Folder structure, error/404/home pages, loading, page layout, notifications              | Done (commit) |
 | 1   | Login                        | Sign up, log in, log out, protected routes, user role (Better Auth). Form field wrappers | Done (commit) |
-| 2   | Admin: users                 | List users, enable/disable, change role                                                  | **Next**      |
-| 3   | Alert rules                  | Create, edit, delete, list own rules. Final category list + NewsData.io mapping          | –             |
+| 2   | Admin: users                 | List users, enable/disable, change role                                                  | Done (commit) |
+| 3   | Alert rules                  | Create, edit, delete, list own rules. Final category list + NewsData.io mapping          | **Next**      |
 | 4   | Email channel                | Connect an email address, send a test message (Resend)                                   | –             |
 | 5   | First real alerts            | NewsData.io → matcher → instant email (BullMQ)                                           | –             |
 | 6   | Digests                      | Hourly and daily delivery, time zone setting                                             | –             |
@@ -493,6 +505,121 @@ client / Orval setup. Later milestones: empty state (3), confirm dialog (3), dat
     explicitly (`advanced.disableOriginCheck: false`). `apiFetch` no longer crashes on answers that aren't JSON.
     `mutationFn` gets the values explicitly (TanStack Query passes a second argument).
 - [x] 7. Wrap-up: `npm run format`, plan updated, conversation saved in `docs/claude-conversations/1-login_*`, review and commit by the developer.
+
+### Milestone 2 steps (admin: users)
+
+**Scope: included**
+
+- **Users page** `/admin/users` (admins only). The `/admin` placeholder leads to it.
+- **Table:** display name, username, email, role, status (active/disabled), created date, actions menu.
+  Newest users first (fixed order).
+- **Search** in username and email (case-insensitive, "contains", server-side, debounced), max 30 characters.
+- **Pagination** on the server (20 per page).
+- **Change role** (user ↔ admin). Takes effect on the user's next request.
+- **Disable / enable** a user. Disabling deletes their sessions (logged out at once) and blocks login
+  ("Your account has been disabled"). Disabling asks for confirmation (**ConfirmDialog**, moved here from milestone 3).
+- **Safety:** an admin can't disable themselves or remove their own admin role (backend check + hidden in the UI).
+  So there is always at least one admin.
+- **Responsive:** table on tablet/desktop, card list on mobile. Loading, error and empty states.
+- **Orval** set up now: TanStack Query hooks generated from our OpenAPI spec (`src/api/generated/`).
+- **Table component:** plain MUI `Table` + `TablePagination` in a small `DataTable` wrapper (not MUI X DataGrid:
+  heavier and hard to adapt to mobile).
+- **Disable = Better Auth's `admin` plugin "ban".** The plugin adds the `banned` field and blocks login for banned
+  users. Our own endpoint saves role/`banned` and deletes the sessions in one Prisma transaction (see step 4). The
+  plugin's own `/api/auth/admin/*` URLs are switched off. The user list is our own Prisma query (the plugin can only
+  search one field at a time).
+- **One update endpoint** (`PATCH /api/admin/users/:id`) for role and disabled, not one endpoint per action.
+
+**Scope: left out**
+
+- Filters (role, status), sorting, search/page in the URL. Add later if asked.
+- A user's alert rules (milestone 8, rules exist from milestone 3).
+- Create, delete or edit users, reset passwords, impersonation, ban reason/end date, bulk actions.
+
+**Steps**
+
+- [x] 0. Scope
+- [x] 1. Model: admin plugin fields in `schema.prisma`: `User.banned` (default `false`), `banReason`, `banExpires`,
+      `Session.impersonatedBy`. Migration runs in step 4.
+  - The plugin reads and writes all of these, so they must exist even though we only use `banned`.
+  - `role` stays our Prisma enum. The plugin stores it as a string, which works with a Postgres enum as long as only
+    `user`/`admin` are written (our update endpoint only accepts these).
+  - No search index: `ILIKE '%text%'` can't use a normal index, and the users table is small.
+- [x] 2. API contract. Schemas: `packages/shared/src/schemas/admin-users.ts` + `schemas/pagination.ts`, constants:
+      `constants/admin-users.ts` + `constants/pagination.ts`. All endpoints need an admin session (401/403 as before).
+
+  | Endpoint                                | Request                                      | Success                                             | Errors                                                                                                 |
+  | --------------------------------------- | -------------------------------------------- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+  | `GET /api/admin/users`                  | query `search?`, `page` (1), `pageSize` (20) | 200 `{ items: AdminUser[], total, page, pageSize }` | 400 `VALIDATION_FAILED`                                                                                |
+  | `PATCH /api/admin/users/:id`            | body `{ role?, disabled? }`                  | 200 `AdminUser`                                     | 400 `CANNOT_CHANGE_OWN_ROLE`, 400 `CANNOT_DISABLE_SELF`, 404 `USER_NOT_FOUND`, 400 `VALIDATION_FAILED` |
+  | `POST /api/auth/sign-in/email` (change) | –                                            | –                                                   | 403 `BANNED_USER` "Your account has been disabled."                                                    |
+  - `AdminUser`: `id, name, username` (as typed, = `displayUsername`), `email, role, disabled, createdAt` (ISO
+    string). The API says **disabled**, not "banned": the plugin's word stays inside the backend.
+  - List: newest first. A page after the last one returns `items: []` (not an error). `search` (max 30 characters)
+    is trimmed and matched against username and email, empty = all users.
+  - **One `PATCH` for every change** (decided with the developer): role and disabled are both "update this user", so
+    one endpoint means one Orval hook and one place for the rules. `PATCH`, not `PUT`: `PUT` replaces the whole user
+    (every field must be sent), `PATCH` changes only the fields in the body.
+    - Only the fields in the body change. An empty body or the same values (e.g. disabling a disabled user) is not an
+      error: the user is returned unchanged.
+    - The backend saves what changed. `disabled: true` also deletes the user's sessions (logged out at once).
+    - Changing your own role or disabling yourself → 400, even together with other fields (nothing is saved).
+  - `GET /api/admin/ping` is removed in step 4 (the e2e tests use `GET /api/admin/users` for the guards instead).
+  - **The shared Zod schemas are also the OpenAPI schemas.** Zod 4's `z.toJSONSchema()` turns them into Swagger
+    schemas, so there are no duplicate DTO classes. Orval reads the spec and generates the frontend types and hooks.
+    One source of truth: Zod → backend validation + Swagger → Orval → frontend.
+
+- [x] 3. Frontend UI: `/admin/users` (`/admin` redirects there, placeholder page removed), `DataTable` and
+      `ConfirmDialog` in `global/components/`, row actions menu, search (debounced, max 30), `admin` translations.
+      Runs on temporary sample data (`pages/admin/Users/sampleUsers.ts`, deleted in step 5).
+  - `DataTable`: table from `md` (900px), cards below (a 7-column table doesn't fit a phone or a portrait tablet).
+    Columns say where they go in the card (`title`, `action` or a "label: value" line). Loading, error with "Try
+    again", empty text, server-side pagination (1-based like the API). The previous page stays visible (dimmed)
+    while the next one loads.
+  - Your own row shows a "You" chip and has no actions menu.
+  - Role changes happen at once (with a message); disabling asks first (`ConfirmDialog`, Cancel has the focus).
+- [x] 4. Backend: migration `admin_users`, Better Auth `admin` plugin (replaces our own `role` field config),
+      `AdminUsersController` + `AdminUsersService` (`src/admin/`), error texts, `GET /api/admin/ping` removed.
+      Checked with curl: list, pagination, search, validation errors, 401/403, role change, unknown fields dropped,
+      own role/disable (400), unknown user (404), disable → sessions gone + login `BANNED_USER`, enable → login works,
+      plugin URLs closed (404).
+  - **Changed during implementation: one Prisma transaction instead of the plugin's `banUser`/`setRole`.** With
+    one `PATCH` that can change role and disabled together, two separate plugin calls could save one change and fail
+    on the other. The transaction saves the role, `banned` and the logout (deleting sessions) together or not at
+    all. The plugin is still used for its fields and for blocking login: its login check reads `banned` from the
+    database, so it doesn't matter who set it.
+  - **Bug found with curl:** Prisma's `contains` doesn't escape `_` and `%` (SQL `LIKE` wildcards), so searching
+    `_` matched every user. `escapeLike()` in the service fixes it.
+  - **OpenAPI from Zod** (`src/openapi/zod-openapi.ts`): the shared schemas are registered as OpenAPI components
+    (`schemaRef('AdminUser')`), nested schemas become `$ref`s (named types in Orval), and `@ApiQueryFromZod()`
+    documents query parameters. `operationId`s (`getAdminUsers`, `updateAdminUser`) are the names Orval will use.
+  - The plugin's endpoints are closed in `AuthController` (any `/api/auth/admin/*` → 404), not with Better Auth's
+    `disabledPaths`, which needs every path listed one by one.
+- [x] 5. Connect: Orval set up, `useAdminUsers`/`useUpdateAdminUser` use the generated code, sample data deleted.
+  - **Orval:** `alert-app-frontend/orval.config.ts`. Run `npm run api:generate -w alert-app-frontend` **with the
+    backend running** after an API change. It reads `http://localhost:3000/api/docs-json` and writes
+    `src/api/generated/` (one folder per Swagger tag + `model/` types, formatted with Prettier, skipped by ESLint).
+    The generated files are committed, so the frontend builds without a running backend.
+  - Every generated request goes through `orvalFetch` (in `apiFetch.ts`): same language header and `ApiRequestError`
+    as our own calls. `ErrorType` in the same file makes the generated hooks' errors `ApiRequestError`.
+  - Our hooks in `api/<area>/` wrap the generated code (e.g. `placeholderData`, cache invalidation with
+    `getGetAdminUsersQueryKey()`), so pages never import from `api/generated/` directly.
+  - The auth endpoints stay in `authApi.ts`: Better Auth's endpoints are not in our Swagger spec.
+  - Login of a disabled user needs no frontend change: the backend's message is shown above the button.
+  - **Known limit:** a user who is disabled while their page is open keeps seeing it until the next session check
+    (their next API call gets 401). A global "401 → back to login" handler can come later.
+- [x] 6. Tests: shared 19 (+7: list query, update body), backend 20 unit (+4: `escapeLike`, self rules) + 20 e2e
+      (+9 in `admin-users.e2e-spec.ts`), frontend 62 (+18: `AdminUsersPage`, `DataTable`, `ConfirmDialog`).
+  - Backend e2e: list order, paging and total, search (any case, username and email, `_` not a wildcard),
+    validation errors, 401/403, role change with unknown fields dropped, disable → logged out + `BANNED_USER` →
+    enable → login works, own role/disable rejected and nothing saved, 404/400, plugin URLs closed. The lists are
+    filtered by the run's id, because the database may hold other users.
+  - Frontend page tests fake only `orvalFetch` (`vi.mock` with the real module otherwise), so the generated hooks,
+    our hooks and the query cache are tested too. jsdom has no screen size, so pages render the card layout;
+    `DataTable.test.tsx` stubs `matchMedia` for the table layout.
+  - Checked that two tests really catch bugs: the `_` search test fails without `escapeLike`, and the "reloads the
+    list" test fails without the cache invalidation.
+- [x] 7. Wrap-up: `npm run format`, plan updated, conversation saved in `docs/claude-conversations/2-admin-users_*`, review by the developer, commit (asked for by the developer).
 
 ---
 

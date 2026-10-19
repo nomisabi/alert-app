@@ -29,11 +29,12 @@ describe('apiFetch', () => {
     await expect(apiFetch('/api/test', { method: 'POST', json: { a: 1 } })).resolves.toEqual({
       ok: true,
     });
-    expect(fetchMock).toHaveBeenCalledWith('/api/test', {
-      method: 'POST',
-      headers: { 'Accept-Language': 'en', 'Content-Type': 'application/json' },
-      body: '{"a":1}',
-    });
+    const [url, init] = fetchMock.mock.calls[0]!;
+    expect(url).toBe('/api/test');
+    expect(init).toMatchObject({ method: 'POST', body: '{"a":1}' });
+    const headers = new Headers(init?.headers);
+    expect(headers.get('Accept-Language')).toBe('en');
+    expect(headers.get('Content-Type')).toBe('application/json');
   });
 
   it("throws ApiRequestError with the server's error", async () => {

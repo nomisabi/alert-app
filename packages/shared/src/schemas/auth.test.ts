@@ -118,11 +118,12 @@ describe('loginSchema', () => {
 describe('validation texts', () => {
   it('has exactly one text for every error key the schemas use', () => {
     // All text keys, e.g. "username.tooShort". "invalid" is the backend's fallback, not a schema key.
+    // "search" is checked in admin-users.test.ts.
     const textKeys = Object.entries(validationMessagesEn)
       .flatMap(([group, texts]) =>
         typeof texts === 'string' ? [group] : Object.keys(texts).map((key) => `${group}.${key}`),
       )
-      .filter((key) => key !== 'invalid');
+      .filter((key) => key !== 'invalid' && !key.startsWith('search.'));
 
     expect([...producedKeys].sort()).toEqual(textKeys.sort());
   });

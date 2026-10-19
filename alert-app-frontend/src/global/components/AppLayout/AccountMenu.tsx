@@ -1,13 +1,11 @@
 import type { AuthUser } from '@alert-app/shared';
 import AccountCircle from '@mui/icons-material/AccountCircle';
 import { Button, Divider, ListItemText, Menu, MenuItem } from '@mui/material';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router';
+import { useSignOut } from '../../../api/auth/useSignOut';
 import { useNotify } from '../../hooks/useNotify';
-import { sessionQueryKey } from '../../hooks/useSession';
-import { signOut } from '../../utils/authApi';
 import styles from './AppLayout.module.scss';
 
 /** AppBar button with the user's name. Opens a menu with the admin link and "Log out". */
@@ -15,23 +13,20 @@ export function AccountMenu({ user }: { user: AuthUser }) {
   const { t } = useTranslation('auth');
   const menuId = useId();
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
-  const queryClient = useQueryClient();
   const navigate = useNavigate();
   const notify = useNotify();
+  const signOut = useSignOut();
 
-  const logout = useMutation({
-    mutationFn: () => signOut(),
-    onSuccess: async () => {
-      // Tell every component using useSession() (e.g. this AppBar) right away. queryClient.clear()
-      // is not enough: it removes the data, but components already on screen keep showing it.
-      queryClient.setQueryData(sessionQueryKey, null);
-      // Forget everything else cached for this user
-      queryClient.removeQueries({ predicate: (query) => query.queryKey[0] !== sessionQueryKey[0] });
+  // mutateAsync + await (not mutate's onSuccess): this menu unmounts as soon as the session is gone
+  const logOut = async () => {
+    try {
+      await signOut.mutateAsync();
       await navigate('/login');
       notify(t('account.loggedOut'));
-    },
-    onError: (error) => notify(error.message, 'error'),
-  });
+    } catch (error) {
+      notify((error as Error).message, 'error');
+    }
+  };
 
   const close = () => setAnchor(null);
 
@@ -68,10 +63,10 @@ export function AccountMenu({ user }: { user: AuthUser }) {
           </MenuItem>
         )}
         <MenuItem
-          disabled={logout.isPending}
+          disabled={signOut.isPending}
           onClick={() => {
             close();
-            logout.mutate();
+            void logOut();
           }}
         >
           {t('account.logout')}

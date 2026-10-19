@@ -38,9 +38,16 @@
     "backHome": "Back to home",
     "details": "Error details (only visible in development)"
   },
-  "admin": {
-    "title": "Admin",
-    "description": "Manage users, alert rules and news sources. User management comes in the next milestone."
+  "actions": {
+    "cancel": "Cancel"
+  },
+  "table": {
+    "displayedRows": "{{from}}–{{to}} of {{count}}",
+    "firstPage": "Go to first page",
+    "previousPage": "Go to previous page",
+    "nextPage": "Go to next page",
+    "lastPage": "Go to last page",
+    "retry": "Try again"
   },
   "errors": {
     "network": "Can't reach the server. Check your connection and try again.",

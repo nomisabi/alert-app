@@ -3,17 +3,12 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Alert, Button } from '@mui/material';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
-import type { z } from 'zod';
 import { FormTextField } from '../../global/components/FormTextField/FormTextField';
 import { setServerErrors } from '../../global/utils/setServerErrors';
+import type { LoginFormProps } from '../../types/login/loginForm';
 import styles from './LoginPage.module.scss';
 
 const defaultValues: LoginFormValues = { email: '', password: '' };
-
-interface LoginFormProps {
-  /** Throws an ApiRequestError when the server rejects the login. */
-  onSubmit: (values: z.output<typeof loginSchema>) => Promise<unknown>;
-}
 
 export function LoginForm({ onSubmit }: LoginFormProps) {
   const { t } = useTranslation('auth');

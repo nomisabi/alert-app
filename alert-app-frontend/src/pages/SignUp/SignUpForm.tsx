@@ -9,11 +9,11 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Alert, Button } from '@mui/material';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
-import type { z } from 'zod';
+import { useCheckUsername } from '../../api/sign-up/useCheckUsername';
 import { FormTextField } from '../../global/components/FormTextField/FormTextField';
 import { useNotify } from '../../global/hooks/useNotify';
-import { isUsernameAvailable } from '../../global/utils/authApi';
 import { setServerErrors } from '../../global/utils/setServerErrors';
+import type { SignUpFormProps } from '../../types/sign-up/signUpForm';
 import styles from './SignUpPage.module.scss';
 
 const defaultValues: SignUpFormValues = {
@@ -24,14 +24,10 @@ const defaultValues: SignUpFormValues = {
   confirmPassword: '',
 };
 
-interface SignUpFormProps {
-  /** Throws an ApiRequestError when the server rejects the sign-up. */
-  onSubmit: (values: z.output<typeof signUpFormSchema>) => Promise<unknown>;
-}
-
 export function SignUpForm({ onSubmit }: SignUpFormProps) {
   const { t } = useTranslation('auth');
   const notify = useNotify();
+  const checkUsernameAvailable = useCheckUsername();
   const form = useForm({
     resolver: zodResolver(signUpFormSchema),
     mode: 'onTouched',
@@ -58,7 +54,7 @@ export function SignUpForm({ onSubmit }: SignUpFormProps) {
   const checkUsername = async () => {
     if (!(await trigger('username'))) return;
     try {
-      const { available } = await isUsernameAvailable(getValues('username').trim());
+      const { available } = await checkUsernameAvailable(getValues('username').trim());
       if (!available) {
         setError('username', { type: 'server', message: t('fields.usernameTaken') });
       }

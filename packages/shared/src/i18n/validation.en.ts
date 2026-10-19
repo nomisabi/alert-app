@@ -1,3 +1,4 @@
+import { USER_SEARCH_MAX_LENGTH } from '../constants/admin-users.js';
 import {
   DISPLAY_NAME_MAX_LENGTH,
   PASSWORD_MAX_LENGTH,
@@ -38,6 +39,9 @@ export const validationMessagesEn = {
     required: 'Repeat your password.',
     mismatch: "The passwords don't match.",
   },
+  search: {
+    tooLong: 'Use at most {{searchMax}} characters.',
+  },
 } as const;
 
 /** Values the validation texts can use, e.g. "Use at least {{usernameMin}} characters." */
@@ -47,4 +51,5 @@ export const VALIDATION_VALUES = {
   usernameMax: USERNAME_MAX_LENGTH,
   passwordMin: PASSWORD_MIN_LENGTH,
   passwordMax: PASSWORD_MAX_LENGTH,
+  searchMax: USER_SEARCH_MAX_LENGTH,
 };

@@ -2,7 +2,7 @@ import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
 import { AppBar, Button, Container, Toolbar, Typography } from '@mui/material';
 import { useTranslation } from 'react-i18next';
 import { Link, Outlet } from 'react-router';
-import { useSession } from '../../hooks/useSession';
+import { useSession } from '../../../api/auth/useSession';
 import { AccountMenu } from './AccountMenu';
 import styles from './AppLayout.module.scss';
 

@@ -1,4 +1,4 @@
-import type { AuthUser } from '@alert-app/shared';
+import type { AdminUser, AdminUserList, AuthUser } from '@alert-app/shared';
 import type { Session } from '../global/utils/authApi';
 
 /** Test data for a logged-in user. Override fields as needed. */
@@ -24,3 +24,25 @@ export function testSession(changes: Partial<AuthUser> = {}): Session {
 
 export const adminSession = () =>
   testSession({ id: 'admin-1', name: 'Admin', username: 'admin.user', role: 'admin' });
+
+/** A user as the admin users page gets it from GET /api/admin/users. */
+export function testAdminUser(changes: Partial<AdminUser> = {}): AdminUser {
+  return {
+    id: 'user-1',
+    name: 'Bob Builder',
+    username: 'Bob.Builder',
+    email: 'bob@example.com',
+    role: 'user',
+    disabled: false,
+    createdAt: '2026-10-19T10:00:00.000Z',
+    ...changes,
+  };
+}
+
+/** One page of the admin users list. `total` defaults to the number of items. */
+export function testAdminUserList(
+  items: AdminUser[],
+  changes: Partial<AdminUserList> = {},
+): AdminUserList {
+  return { items, total: items.length, page: 1, pageSize: 20, ...changes };
+}

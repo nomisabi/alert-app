@@ -1,25 +1,17 @@
 import { Link as MuiLink } from '@mui/material';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Link, Navigate } from 'react-router';
+import { useSession } from '../../api/auth/useSession';
+import { useSignUp } from '../../api/sign-up/useSignUp';
 import { AuthLayout } from '../../global/components/AuthLayout/AuthLayout';
-import { sessionQueryKey, useSession } from '../../global/hooks/useSession';
-import { signUp } from '../../global/utils/authApi';
 import { SignUpForm } from './SignUpForm';
 
 export function SignUpPage() {
   const { t } = useTranslation('auth');
   const { user } = useSession();
-  const queryClient = useQueryClient();
+  const register = useSignUp();
 
-  const register = useMutation({
-    // "Repeat password" is only checked in the browser, so it isn't sent
-    mutationFn: ({ name, username, email, password }: Parameters<typeof signUp>[0]) =>
-      signUp({ name, username, email, password }),
-    // Sign-up also logs in: reload the session, then the <Navigate> below goes to Home
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: sessionQueryKey }),
-  });
-
+  // Sign-up also logs in: useSignUp reloads the session, then this goes to Home
   if (user) return <Navigate to="/" replace />;
 
   return (

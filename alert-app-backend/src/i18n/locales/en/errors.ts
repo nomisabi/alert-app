@@ -15,10 +15,15 @@ export const errorsEn = {
 
   // Ours
   VALIDATION_FAILED: 'Please check the highlighted fields.',
+  USER_NOT_FOUND: 'This user does not exist.',
+  CANNOT_CHANGE_OWN_ROLE: "You can't change your own role.",
+  CANNOT_DISABLE_SELF: "You can't disable your own account.",
 
   // Better Auth
   INVALID_EMAIL_OR_PASSWORD: 'Invalid email or password.',
   USER_ALREADY_EXISTS: 'An account with this email already exists.',
   USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL: 'An account with this email already exists.',
   USERNAME_IS_ALREADY_TAKEN: 'This username is already taken.',
+  // Admin plugin: a disabled user tries to log in
+  BANNED_USER: 'Your account has been disabled. Please contact support.',
 } as const;

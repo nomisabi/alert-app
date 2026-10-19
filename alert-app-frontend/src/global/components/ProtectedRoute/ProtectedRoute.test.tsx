@@ -37,6 +37,6 @@ describe('ProtectedRoute', () => {
     vi.mocked(getSession).mockResolvedValue(adminSession());
     renderRoute('/admin');
 
-    expect(await screen.findByRole('heading', { name: 'Admin' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Users' })).toBeInTheDocument();
   });
 });

@@ -1,7 +1,7 @@
-import type { RouteObject } from 'react-router';
+import { Navigate, type RouteObject } from 'react-router';
 import { AppLayout } from '../global/components/AppLayout/AppLayout';
 import { ProtectedRoute } from '../global/components/ProtectedRoute/ProtectedRoute';
-import { AdminHomePage } from '../pages/admin/Home/AdminHomePage';
+import { AdminUsersPage } from '../pages/admin/Users/AdminUsersPage';
 import { ErrorPage } from '../pages/Error/ErrorPage';
 import { HomePage } from '../pages/Home/HomePage';
 import { LoginPage } from '../pages/Login/LoginPage';
@@ -25,7 +25,16 @@ export const routes: RouteObject[] = [
           { path: 'signup', element: <SignUpPage /> },
           {
             element: <ProtectedRoute requireAdmin />,
-            children: [{ path: 'admin', element: <AdminHomePage /> }],
+            children: [
+              {
+                path: 'admin',
+                children: [
+                  // Users is the only admin page for now
+                  { index: true, element: <Navigate to="users" replace /> },
+                  { path: 'users', element: <AdminUsersPage /> },
+                ],
+              },
+            ],
           },
           { path: '*', element: <NotFoundPage /> },
         ],

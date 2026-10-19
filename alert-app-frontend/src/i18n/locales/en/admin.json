@@ -1,0 +1,52 @@
+{
+  "users": {
+    "title": "Users",
+    "description": "Find users, change their role, or disable their account.",
+    "search": {
+      "label": "Search users",
+      "placeholder": "Username or email"
+    },
+    "table": {
+      "label": "Users"
+    },
+    "columns": {
+      "name": "Name",
+      "username": "Username",
+      "email": "Email",
+      "role": "Role",
+      "status": "Status",
+      "createdAt": "Joined",
+      "actions": "Actions"
+    },
+    "you": "You",
+    "role": {
+      "user": "User",
+      "admin": "Admin"
+    },
+    "status": {
+      "active": "Active",
+      "disabled": "Disabled"
+    },
+    "empty": "There are no users yet.",
+    "noResults": "No users match “{{search}}”.",
+    "loadError": "The users could not be loaded.",
+    "actions": {
+      "menu": "Actions for {{name}}",
+      "makeAdmin": "Make admin",
+      "removeAdmin": "Remove admin role",
+      "disable": "Disable account",
+      "enable": "Enable account"
+    },
+    "disableDialog": {
+      "title": "Disable {{name}}?",
+      "description": "{{name}} will be logged out right away and can't log in until an admin enables the account again.",
+      "confirm": "Disable"
+    },
+    "notify": {
+      "madeAdmin": "{{name}} is now an admin.",
+      "removedAdmin": "{{name}} is no longer an admin.",
+      "disabled": "{{name}}'s account is disabled.",
+      "enabled": "{{name}}'s account is enabled again."
+    }
+  }
+}
