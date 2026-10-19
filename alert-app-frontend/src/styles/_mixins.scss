@@ -1,0 +1,20 @@
+// Shared SASS helpers. Use with: @use '../../styles/mixins' as *;
+@use 'sass:map';
+
+// Spacing in MUI units (1 unit = theme.spacing(1) = 8px by default)
+@function spacing($units) {
+  @return calc(var(--mui-spacing) * #{$units});
+}
+
+// Match MUI's default breakpoints (sm: 600px, md: 900px, lg: 1200px)
+$breakpoints: (
+  sm: 600px,
+  md: 900px,
+  lg: 1200px,
+);
+
+@mixin up($name) {
+  @media (min-width: map.get($breakpoints, $name)) {
+    @content;
+  }
+}

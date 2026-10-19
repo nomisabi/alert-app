@@ -1,0 +1,11 @@
+// Global styles only. Component styles belong in *.module.scss files,
+// and colors/spacing come from the MUI theme via CSS variables.
+
+// Layer order: MUI styles sit in the `mui` layer. Our unlayered styles always override them.
+@layer theme, base, mui, components, utilities;
+
+html,
+body,
+#root {
+  height: 100%;
+}

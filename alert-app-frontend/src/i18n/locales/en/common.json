@@ -1,0 +1,14 @@
+{
+  "app": {
+    "name": "Alert App"
+  },
+  "home": {
+    "title": "Welcome to Alert App",
+    "today": "Today is {{date}}."
+  },
+  "notFound": {
+    "title": "Page not found",
+    "description": "The page you are looking for does not exist.",
+    "backHome": "Back to home"
+  }
+}

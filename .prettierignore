@@ -1,0 +1,9 @@
+node_modules/
+dist/
+build/
+coverage/
+package-lock.json
+# Generated code
+alert-app-backend/src/generated/
+# Exported conversations are kept exactly as exported
+docs/claude-conversations/*_conversations*.md

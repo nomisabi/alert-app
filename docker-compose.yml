@@ -1,0 +1,37 @@
+# Local development services. Start with: npm run db:up
+# Values come from .env (copy .env.example to .env first).
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: alert-app-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-alert}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-alert}
+      POSTGRES_DB: ${POSTGRES_DB:-alert_app}
+    ports:
+      # 5433 on the host, because a local PostgreSQL already uses 5432
+      - '${POSTGRES_PORT:-5433}:5432'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-alert} -d ${POSTGRES_DB:-alert_app}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:8-alpine
+    container_name: alert-app-redis
+    ports:
+      - '${REDIS_PORT:-6379}:6379'
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres-data:
+  redis-data:

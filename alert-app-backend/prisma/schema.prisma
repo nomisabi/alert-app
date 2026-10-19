@@ -1,0 +1,11 @@
+// Database schema. Models are added in Phase 1 (data model).
+// Docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
