@@ -1,4 +1,4 @@
-// Shared SASS helpers. Use with: @use '../../styles/mixins' as *;
+// Shared SASS helpers. Use with: @use '<relative path to src>/styles/mixins' as *;
 @use 'sass:map';
 
 // Spacing in MUI units (1 unit = theme.spacing(1) = 8px by default)

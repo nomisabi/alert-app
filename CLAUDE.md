@@ -14,8 +14,11 @@ The full plan and all decisions are in [docs/PROJECT_PLAN.md](docs/PROJECT_PLAN.
 
 - The developer is a frontend developer who is new to backend work. Explain backend concepts when introducing them.
 - Work step by step and stop after each step so it can be checked. Do not commit unless asked.
-- **The frontend folder structure is not final.** Before creating new folders or moving files, discuss the structure
-  with the developer (see "Open questions" in docs/PROJECT_PLAN.md).
+- Work in vertical slices: one milestone (feature) at a time, following the "Steps for every milestone" in
+  docs/PROJECT_PLAN.md (scope → model → API contract → frontend → backend → tests → wrap-up).
+- **Frontend folders** (details in docs/PROJECT_PLAN.md): `src/global/{components,hooks,utils}` for anything used in
+  2+ places, `src/pages/<Page>/` for a page and the parts only it uses (flat, no subfolders), `src/api/generated/`
+  for Orval output. Ask before adding other top-level folders.
 
 ## Rules
 
@@ -25,6 +28,9 @@ The full plan and all decisions are in [docs/PROJECT_PLAN.md](docs/PROJECT_PLAN.
 - **Styling:** the MUI theme is the single source of truth for colors, typography and spacing.
   Use SASS modules (`*.module.scss`) for layout and custom styling, and reuse theme values through MUI CSS variables (`var(--mui-...)`).
   Do not override MUI internals with global SASS. No Tailwind.
+- **Responsive and accessible:** every page and component works on mobile, tablet and desktop (mobile first,
+  `@include up(...)` mixins). Basic accessibility: semantic elements and headings, labels for every form field and
+  icon-only button, keyboard support, visible focus, enough color contrast (from the theme).
 - **i18n:** all user-facing text goes through i18next (`t()`). No hard-coded UI strings.
 - **Server state** uses TanStack Query. Do not add Redux or Zustand.
 - **Forms** use React Hook Form + Zod. Put shared schemas in `packages/shared`.

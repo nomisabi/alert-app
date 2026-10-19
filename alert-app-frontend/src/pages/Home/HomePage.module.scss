@@ -1,0 +1,19 @@
+@use '../../styles/mixins' as *;
+
+.features {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: spacing(2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  @include up(md) {
+    grid-template-columns: repeat(3, 1fr);
+    gap: spacing(3);
+  }
+}
+
+.card {
+  height: 100%;
+}

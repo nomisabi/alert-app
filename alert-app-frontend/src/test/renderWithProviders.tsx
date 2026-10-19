@@ -1,6 +1,6 @@
 import { render } from '@testing-library/react';
 import type { ReactElement } from 'react';
-import { createMemoryRouter, RouterProvider } from 'react-router';
+import { createMemoryRouter, RouterProvider, type RouteObject } from 'react-router';
 import { AppProviders } from '../app/AppProviders';
 import { createQueryClient } from '../app/queryClient';
 import { routes } from '../app/routes';
@@ -13,9 +13,9 @@ export function renderWithProviders(ui: ReactElement) {
   return render(<AppProviders queryClient={queryClient}>{ui}</AppProviders>);
 }
 
-/** Renders the real app routes at the given URL. */
-export function renderRoute(path: string) {
-  const router = createMemoryRouter(routes, { initialEntries: [path] });
+/** Renders the real app routes (or the given test routes) at the given URL. */
+export function renderRoute(path: string, routeList: RouteObject[] = routes) {
+  const router = createMemoryRouter(routeList, { initialEntries: [path] });
 
   return { router, ...renderWithProviders(<RouterProvider router={router} />) };
 }

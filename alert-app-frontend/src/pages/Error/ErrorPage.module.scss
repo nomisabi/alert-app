@@ -1,0 +1,30 @@
+@use '../../styles/mixins' as *;
+
+.standalone {
+  padding-block: spacing(3);
+
+  @include up(md) {
+    padding-block: spacing(5);
+  }
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: spacing(2);
+}
+
+.details {
+  margin-top: spacing(4);
+}
+
+.stack {
+  overflow: auto;
+  max-height: 20rem;
+  padding: spacing(2);
+  border-radius: var(--mui-shape-borderRadius);
+  background-color: var(--mui-palette-action-hover);
+  font-size: 0.8125rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+}

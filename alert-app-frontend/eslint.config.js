@@ -36,7 +36,7 @@ export default defineConfig([
         {
           selector:
             'CallExpression[callee.property.name=/^(toLocaleDateString|toLocaleTimeString)$/]',
-          message: 'Use formatDate() from src/lib/date (date-fns) instead.',
+          message: 'Use formatDate() from src/global/utils/date (date-fns) instead.',
         },
       ],
     },

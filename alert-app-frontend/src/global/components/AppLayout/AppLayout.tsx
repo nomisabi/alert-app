@@ -9,6 +9,10 @@ export function AppLayout() {
 
   return (
     <div className={styles.layout}>
+      {/* Hidden until focused with Tab: lets keyboard users jump past the AppBar */}
+      <a href="#main-content" className={styles.skipLink}>
+        {t('app.skipToContent')}
+      </a>
       <AppBar position="static">
         <Toolbar>
           <Link to="/" className={styles.brand}>
@@ -19,7 +23,14 @@ export function AppLayout() {
           </Link>
         </Toolbar>
       </AppBar>
-      <Container component="main" maxWidth="lg" className={styles.content}>
+      {/* tabIndex -1: the skip link can move focus here */}
+      <Container
+        component="main"
+        id="main-content"
+        tabIndex={-1}
+        maxWidth="lg"
+        className={styles.content}
+      >
         <Outlet />
       </Container>
     </div>

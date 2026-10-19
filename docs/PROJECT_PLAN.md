@@ -1,6 +1,6 @@
 # Alert App: Project Plan
 
-Last updated: 2026-10-19 (end of Phase 0 setup)
+Last updated: 2026-10-19 (milestones re-planned as vertical slices, frontend folder structure decided)
 
 This document holds everything we have decided so far, and why. The full discussion is in
 [docs/claude-conversations/](claude-conversations/).
@@ -88,7 +88,7 @@ Free news APIs we compared (October 2026; third-party sources disagreed on some 
     are written as React components.
   - It sits behind an `EmailProvider` interface, so switching to SendGrid, Mailgun or SES is one small class.
 - **Slack: not decided yet.** Incoming webhooks (user pastes a URL, very easy) are probably enough.
-  A Slack app with OAuth is nicer but more work. **Research and decide when we implement Phase 5.**
+  A Slack app with OAuth is nicer but more work. **Research and decide when we implement milestone 7.**
 
 ### Admin
 
@@ -100,7 +100,8 @@ Free news APIs we compared (October 2026; third-party sources disagreed on some 
 
 ### Auth
 
-- **Email and password** for now: sign up, log in, log out, **email verification**, **password reset**.
+- **Email and password** for now: sign up, log in, log out (milestone 1), **email verification** and
+  **password reset** (milestone 9).
 - Library: **Better Auth** (TypeScript, self-hosted, Prisma support). Passwords hashed (argon2/bcrypt),
   sessions in **httpOnly cookies** (safer than tokens in localStorage).
 - Google login or 2FA can be added later through configuration.
@@ -223,9 +224,38 @@ clashes with MUI's `CssBaseline`, and colors/spacing would be defined twice. Tai
 - MUI styles go into a CSS layer (`StyledEngineProvider enableCssLayer`), so SASS modules always win.
 - `styles/_mixins.scss`: `spacing(n)` and `@include up(md)` match MUI's spacing and breakpoints.
 
+#### Frontend folder structure
+
+```
+src/
+  app/            app-wide wiring: App, AppProviders, routes, router, queryClient
+  global/         everything used in 2 or more places
+    components/     AppLayout, Loading, PageLayout, ...
+    hooks/          useNotify, useSession, ...
+    utils/          date.ts, ...
+  pages/          one folder per page
+    Login/
+      LoginPage.tsx       the page itself
+      LoginForm.tsx       smaller parts used only by this page (flat, no subfolders)
+      LoginPage.test.tsx
+    admin/          admin pages grouped in one folder (Users/, Rules/, ...)
+  api/
+    generated/    Orval output, never edited by hand
+  i18n/           i18next setup + translations (one file per area: common.json, auth.json, ...)
+  theme/          MUI theme
+  styles/         global SASS + mixins
+  test/           test setup + render helpers
+```
+
+- **Rule:** code used by one page lives in that page's folder. As soon as a second place uses it, it moves to
+  `global/`.
+- Related pages can be grouped in a folder (like `admin/`) when it helps, but this is not required.
+- Tests sit next to the file they test.
+- The developer prefers type-based folders (`global/` + `pages/`) to a feature-based `features/` folder.
+
 **Not now:**
 
-- **MSW**: not needed for the setup. Reconsider when building screens before the API exists.
+- **MSW**: see open questions (decide in milestone 1).
 - **Playwright**: enough testing tools for now. Revisit later.
 - **Redux / Zustand**: TanStack Query handles server state. React context covers the rest.
 
@@ -239,9 +269,9 @@ clashes with MUI's `CssBaseline`, and colors/spacing would be defined twice. Tai
 | API docs  | Swagger at `/api/docs`, OpenAPI JSON at `/api/docs-json`        |
 | Tests     | Vitest (unit + e2e with supertest)                              |
 | Lint      | ESLint (with type-aware rules) + Prettier                       |
-| Jobs      | BullMQ + Redis 8 (Phase 4)                                      |
-| Email     | Resend (Phase 4)                                                |
-| Auth      | Better Auth (Phase 3)                                           |
+| Jobs      | BullMQ + Redis 8 (milestone 5)                                  |
+| Email     | Resend (milestone 4)                                            |
+| Auth      | Better Auth (milestone 1)                                       |
 | Local dev | Docker Compose                                                  |
 
 Libraries are installed in the phase that uses them, not before.
@@ -270,18 +300,43 @@ Libraries are installed in the phase that uses them, not before.
 
 ---
 
-## Phases
+## Milestones
 
-| Phase                          | Goal                                                                      | Status        |
-| ------------------------------ | ------------------------------------------------------------------------- | ------------- |
-| 0. Setup                       | Monorepo, frontend and backend scaffolds, shared package, Docker, tooling | Done (commit) |
-| 1. Data model and API contract | Prisma schema, OpenAPI endpoints, Orval                                   | **Next**      |
-| 2. Frontend screens            | User screens (dashboard, alert form, channels, settings)                  | –             |
-| 3. Backend basics              | Auth, CRUD for rules and channels                                         | –             |
-| 4. First end-to-end flow       | NewsData.io → matcher → **email** (BullMQ, Resend)                        | –             |
-| 5. Slack                       | Slack channel through `NotificationChannel`                               | –             |
-| 6. Admin view                  | Users, rules, sources, notification log                                   | –             |
-| 7. Production readiness        | Rate limiting, monitoring, deployment                                     | –             |
+**We build in vertical slices:** one feature at a time, through every layer (model, frontend, backend, tests),
+so every milestone ends with something that works and can be clicked through. Models are designed when a feature
+needs them, not all up front.
+
+The first plan was split into layers (all models, then all screens, then all backend). We dropped it because it
+meant deciding too much before seeing anything work.
+
+### Steps for every milestone
+
+0. **Scope:** what the feature does, and what it explicitly leaves out for now.
+1. **Model:** Prisma models and fields.
+2. **API contract:** endpoints, request/response shapes, Zod schemas in `packages/shared`. Agreed before the
+   frontend, so the frontend can be built (with mocks) before the backend exists.
+3. **Frontend:** pages, components, hooks, forms, translations, loading/error/empty states. Everything responsive
+   (mobile first) and with basic accessibility (semantic HTML, labels, keyboard, focus, contrast).
+4. **Backend:** modules, services, controllers, migrations.
+5. **Tests**
+6. **Wrap-up:** `npm run format`, update this plan, review by the developer, commit by the developer.
+
+### Milestone list
+
+| #   | Milestone                    | Goal                                                                                     | Status        |
+| --- | ---------------------------- | ---------------------------------------------------------------------------------------- | ------------- |
+| 0   | Setup                        | Monorepo, frontend and backend scaffolds, shared package, Docker, tooling                | Done (commit) |
+| 0.5 | Frontend foundation          | Folder structure, error/404/home pages, loading, page layout, notifications              | **Next**      |
+| 1   | Login                        | Sign up, log in, log out, protected routes, user role (Better Auth). Form field wrappers | –             |
+| 2   | Admin: users                 | List users, enable/disable, change role                                                  | –             |
+| 3   | Alert rules                  | Create, edit, delete, list own rules. Final category list + NewsData.io mapping          | –             |
+| 4   | Email channel                | Connect an email address, send a test message (Resend)                                   | –             |
+| 5   | First real alerts            | NewsData.io → matcher → instant email (BullMQ)                                           | –             |
+| 6   | Digests                      | Hourly and daily delivery, time zone setting                                             | –             |
+| 7   | Slack                        | Slack channel through `NotificationChannel`                                              | –             |
+| 8   | Admin: rules, sources, log   | All rules, source status and settings, notification log                                  | –             |
+| 9   | Email verification and reset | Email verification, password reset                                                       | –             |
+| 10  | Production readiness         | Rate limiting, monitoring, hosting, deployment                                           | –             |
 
 ### Phase 0 setup steps
 
@@ -299,39 +354,34 @@ Libraries are installed in the phase that uses them, not before.
   - Fixes: frontend README, `engines: node >=24.15` (developer updated Node to 24.22), backend `package.json`
     metadata, single root `.gitignore`, bell favicon, ESLint in the backend.
 - [x] Conversation export to `docs/claude-conversations/`: readable version (`scripts/export-conversation.mjs`) + the developer's `/export`.
-- [ ] First commit (by the developer)
+- [x] First commit (by the developer)
 
-### Next: Phase 1 (data model and API contract)
+### Milestone 0.5 steps (frontend foundation)
 
-1. Discuss and decide the **frontend folder structure** (see open questions).
-2. Finalize the category list and the data model, then write the Prisma schema and the first migration.
-3. Define the API endpoints (OpenAPI via Swagger decorators) and set up Orval in the frontend.
+Not part of the setup and not a feature, but every milestone needs these pieces.
+
+- [x] Decide the frontend folder structure (see [Frontend folder structure](#frontend-folder-structure))
+- [x] A. Move the existing files to the new structure (`lib/` → `global/utils/`, `components/` →
+      `global/components/`, `pages/HomePage/` → `pages/Home/`, ...)
+- [x] B. Error page (React Router `errorElement`) and loading components (full page + inline)
+  - Error page is attached twice: around the pages (AppBar stays) and on the root route (fallback). Error details
+    only in development. 404 page stays a simple static page (no shared component).
+  - `Loading` waits 300 ms before showing, so fast loads don't flash a spinner.
+- [x] C. Page layout (title + optional action), Home page, 404 page polish
+- [x] D. Notifications: snackbar + `useNotify()` hook
+- [ ] E. Tests, format, plan update, review, commit
+
+Moved to milestone 1, where they are first needed: form field wrappers (MUI + React Hook Form) and the API
+client / Orval setup. Later milestones: empty state (3), confirm dialog (3), data table (2).
 
 ---
 
 ## Open questions
 
-- **Frontend folder structure: discuss before adding new folders or features.** The current structure is
-  temporary:
-
-  ```
-  src/app/          app-wide wiring (App, AppProviders, routes, router, queryClient)
-  src/components/   shared UI components
-  src/pages/        route pages
-  src/theme/        MUI theme
-  src/styles/       global SASS + mixins
-  src/i18n/         i18next setup + translations
-  src/lib/          helpers (date.ts)
-  src/test/         test setup + render helpers
-  ```
-
-  Points raised so far:
-  - `src/app/` feels unusual (the developer is used to everything directly in `src`) but is easy to find. Probably keep it.
-  - `src/lib/` should probably be renamed to `src/utils/`, holding all utility functions.
-  - Still to decide: a `features/` folder (feature-based) vs. type-based folders, and where Orval's generated hooks go.
-
-- **Slack:** incoming webhook or Slack app (OAuth)? Decide in Phase 5 after research.
-- **Final category list** and its mapping to NewsData.io categories (Phase 1).
+- **MSW:** the frontend is now built before the backend in each milestone. Decide in milestone 1 whether to mock
+  the API with MSW or with simple stubs.
+- **Slack:** incoming webhook or Slack app (OAuth)? Decide in milestone 7 after research.
+- **Final category list** and its mapping to NewsData.io categories (milestone 3).
 - **Hosting and deployment** (e.g. Railway/Render/Fly.io for the backend, Vercel/Netlify for the frontend).
 - **Verify before launch:** NewsData.io and Resend free-tier terms on their official pricing pages.
 - Later: other alert types from the brief (market movements, natural disasters), e.g. Finnhub/Alpha Vantage

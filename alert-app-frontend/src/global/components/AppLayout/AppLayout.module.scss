@@ -1,0 +1,41 @@
+@use '../../../styles/mixins' as *;
+
+.layout {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+.skipLink {
+  position: absolute;
+  top: spacing(1);
+  left: spacing(1);
+  z-index: 2000; // above the AppBar
+  padding: spacing(1) spacing(2);
+  border-radius: var(--mui-shape-borderRadius);
+  background-color: var(--mui-palette-background-paper);
+  color: var(--mui-palette-primary-main);
+  transform: translateY(-200%);
+
+  &:focus {
+    transform: none;
+  }
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: spacing(1);
+  color: inherit;
+  text-decoration: none;
+}
+
+.content {
+  flex: 1;
+  outline: none; // focused only by the skip link, not by users clicking
+  padding-block: spacing(3);
+
+  @include up(md) {
+    padding-block: spacing(5);
+  }
+}

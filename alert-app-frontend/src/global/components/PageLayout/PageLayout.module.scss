@@ -1,0 +1,29 @@
+@use '../../../styles/mixins' as *;
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: spacing(2);
+  margin-bottom: spacing(3);
+
+  @include up(sm) {
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: space-between;
+  }
+}
+
+.description {
+  margin-top: spacing(1);
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: spacing(1);
+
+  @include up(sm) {
+    flex-direction: row;
+    flex-shrink: 0;
+  }
+}

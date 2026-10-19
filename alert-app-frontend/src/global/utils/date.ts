@@ -1,7 +1,7 @@
 import { tz } from '@date-fns/tz';
 import { format, type Locale } from 'date-fns';
 import { enUS } from 'date-fns/locale';
-import i18n from '../i18n';
+import i18n from '../../i18n';
 
 // Add a date-fns locale here when a new UI language is added.
 const dateLocales: Record<string, Locale> = {

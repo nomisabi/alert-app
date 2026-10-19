@@ -1,14 +1,41 @@
 {
   "app": {
-    "name": "Alert App"
+    "name": "Alert App",
+    "pageTitle": "{{page}} · Alert App",
+    "skipToContent": "Skip to main content"
+  },
+  "loading": "Loading…",
+  "notifications": {
+    "close": "Close"
   },
   "home": {
-    "title": "Welcome to Alert App",
-    "today": "Today is {{date}}."
+    "title": "Get notified when something important happens",
+    "description": "Set up alerts for the news you care about, and we tell you when it happens.",
+    "features": {
+      "rules": {
+        "title": "Your topics",
+        "text": "Choose categories and keywords, so you only get the news that matters to you."
+      },
+      "channels": {
+        "title": "Email or Slack",
+        "text": "Get alerts where you already work: in your inbox or in a Slack channel."
+      },
+      "frequency": {
+        "title": "Your timing",
+        "text": "Get each alert right away, or one summary per hour or per day."
+      }
+    }
   },
   "notFound": {
     "title": "Page not found",
     "description": "The page you are looking for does not exist.",
     "backHome": "Back to home"
+  },
+  "error": {
+    "title": "Something went wrong",
+    "description": "An unexpected error happened. Please try again.",
+    "tryAgain": "Try again",
+    "backHome": "Back to home",
+    "details": "Error details (only visible in development)"
   }
 }

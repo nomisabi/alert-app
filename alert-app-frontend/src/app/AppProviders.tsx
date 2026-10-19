@@ -2,6 +2,7 @@ import { CssBaseline, StyledEngineProvider, ThemeProvider } from '@mui/material'
 import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import type { ReactNode } from 'react';
+import { NotificationProvider } from '../global/components/NotificationProvider/NotificationProvider';
 import { theme } from '../theme/theme';
 import { queryClient as defaultQueryClient } from './queryClient';
 
@@ -19,7 +20,7 @@ export function AppProviders({ children, queryClient = defaultQueryClient }: App
       <ThemeProvider theme={theme}>
         <CssBaseline />
         <QueryClientProvider client={queryClient}>
-          {children}
+          <NotificationProvider>{children}</NotificationProvider>
           {/* Only included in development builds */}
           <ReactQueryDevtools initialIsOpen={false} />
         </QueryClientProvider>

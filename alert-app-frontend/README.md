@@ -34,16 +34,20 @@ The reasons for each choice are in [docs/PROJECT_PLAN.md](../docs/PROJECT_PLAN.m
 src/
   main.tsx          entry point
   app/              app-wide wiring (App, AppProviders, routes, router, queryClient)
-  components/       shared UI components
-  pages/            route pages
+  global/           everything used in 2 or more places
+    components/       shared UI components (AppLayout, ...)
+    hooks/            shared hooks
+    utils/            helpers (formatDate, ...)
+  pages/            one folder per page, with the parts only that page uses (admin pages in pages/admin/)
+  api/generated/    Orval output (never edited by hand)
   theme/            MUI theme (colors, typography, spacing)
   styles/           global SASS + mixins
   i18n/             i18next setup + translations (locales/en/*.json)
-  lib/              helpers (formatDate)
   test/             test setup + render helpers
 ```
 
-This structure is temporary and will be decided before Phase 2 (see "Open questions" in the plan).
+Rule: code used by one page lives in that page's folder. When a second place uses it, it moves to `global/`.
+Details in [docs/PROJECT_PLAN.md](../docs/PROJECT_PLAN.md#frontend-folder-structure).
 
 ## Conventions
 
