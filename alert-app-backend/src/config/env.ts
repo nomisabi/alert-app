@@ -18,6 +18,9 @@ export const envSchema = z.object({
     .transform((key) => key || undefined),
   // Without a verified domain, Resend's test sender only delivers to the Resend account's own email
   EMAIL_FROM: z.string().min(1).default('Alert App <onboarding@resend.dev>'),
+  // Slack (milestone 7): users paste their own webhook URLs, so there is no key. "false" = Slack
+  // messages are only written to the log (LogSlackWebhookClient), e.g. in the e2e tests.
+  SLACK_ENABLED: z.stringbool().default(true),
   // Background jobs (milestone 5): Redis from docker-compose.yml holds the BullMQ queues
   REDIS_URL: z.url().default('redis://localhost:6379'),
   // Start of every queue's Redis keys. The e2e tests use their own, so they never touch the

@@ -1,6 +1,6 @@
 # Alert App: Plan Summary
 
-Last updated: 2026-10-20 (milestone 5 done, next: milestone 7)
+Last updated: 2026-10-20 (milestone 7 done: the current scope is finished, next: questions for the manager)
 
 The short version of [PROJECT_PLAN.md](PROJECT_PLAN.md): only what is needed to build the current scope.
 PROJECT_PLAN.md stays the full record (all decisions, the reasons, every finished milestone's steps). Read a section
@@ -10,21 +10,23 @@ there when you need more detail.
 
 We are short on time, so the scope is cut to three milestones, in this order:
 
-| #   | Milestone         | Goal                                                   | Status   |
-| --- | ----------------- | ------------------------------------------------------ | -------- |
-| 4   | Email channel     | Connect an email address, send a test message (Resend) | Done     |
-| 5   | First real alerts | NewsData.io → matcher → instant email (BullMQ)         | Done     |
-| 7   | Slack             | Slack channel through `NotificationChannel`            | **Next** |
+| #   | Milestone         | Goal                                                   | Status |
+| --- | ----------------- | ------------------------------------------------------ | ------ |
+| 4   | Email channel     | Connect an email address, send a test message (Resend) | Done   |
+| 5   | First real alerts | NewsData.io → matcher → instant email (BullMQ)         | Done   |
+| 7   | Slack             | Slack channel through `NotificationChannel`            | Done   |
 
 Done: 0 setup, 0.5 frontend foundation, 1 login, 2 admin users, 3 alert rules (all on `main`), 4 email channel
-(branch `milestone-4-email-channel`, merged), 5 first real alerts (branch `milestone-5-first-real-alerts`).
+(branch `milestone-4-email-channel`, merged), 5 first real alerts (branch `milestone-5-first-real-alerts`), 7 Slack
+(branch `milestone-7-slack`). **The current scope is finished.** Still open: the developer's manual check with a real
+Slack workspace (M7 step 4a).
 
 Everything else (digests, admin rules/sources/log, email verification and password reset, production readiness,
 smaller "later" items) is in the [TODO list](PROJECT_PLAN.md#todo-later); **Bull Board is its first item**. We
 revisit it after this scope. **Every rule is delivered instantly** (no hourly/daily digests in this scope).
 
-At the end of the scope, the developer asks the manager the
-[questions for the manager](PROJECT_PLAN.md#questions-for-the-manager).
+**Next:** the developer asks the manager the [questions for the manager](PROJECT_PLAN.md#questions-for-the-manager)
+(now 10, incl. Slack webhook vs. "Add to Slack"), then we pick from the TODO list (Bull Board first).
 
 ## How we work
 
@@ -102,10 +104,24 @@ Details: [Milestone 5 steps](PROJECT_PLAN.md#milestone-5-steps-first-real-alerts
   (others: 403; `example.com` addresses: 422).
 - Known risk: the sign-up hook runs after the user is saved (not in one transaction). A user without a channel can't
   save rules.
-- **Slack: not decided** (incoming webhook = user pastes a URL, easy; Slack app with OAuth = nicer, more work).
-  Research and decide at the start of milestone 7. With the time pressure, the simpler option is preferred.
+- **Slack: incoming webhook** (decided in M7): the user pastes a webhook URL. OAuth "Add to Slack" is in the TODO
+  (it also ends with a webhook URL, so `SlackChannel` stays the same).
+  Details: [Milestone 7 steps](PROJECT_PLAN.md#milestone-7-steps-slack).
+  - **One Slack channel per user.** A Slack card next to the email card on `/channels`: "Connect Slack" until it's
+    connected, then "Send test message" and "Edit". Dialog: **Name** + **Webhook URL** (only
+    `https://hooks.slack.com/services/<3 ids>`, against SSRF).
+  - `POST /api/channels` (`{ type: 'slack', name, webhookUrl }` → 201 `Channel`) sends the test message first:
+    Slack 4xx → 400 `SLACK_WEBHOOK_INVALID` (nothing saved), Slack down → 502, already connected → 409
+    `SLACK_ALREADY_CONNECTED`. `PATCH /api/channels/:id` (`{ name?, webhookUrl? }`): a new URL gets the test
+    message first; in the form the URL starts empty (= keep). Email can't be edited (400 `CHANNEL_NOT_EDITABLE`).
+  - `config` = `{ name, webhookUrl }` (`slackChannelConfigSchema`), `destination` = name.
+  - **The webhook URL is a secret:** never returned by the API, never logged.
+  - Block Kit messages (+ `text` fallback), **15 articles + "and N more"**. 4xx except 429 → `PermanentSendError`.
+  - `SlackWebhookClient` (fetch / log), `SLACK_ENABLED=false` in `setup-e2e.ts`.
+  - **No deleting channels** in this scope (TODO: 409 while any rule uses it).
+  - Step 4a starts with a manual step: the developer creates a test Slack workspace + app + webhook.
 
-## Conventions from milestones 1–5 (keep using them)
+## Conventions from milestones 1–7 (keep using them)
 
 **API and backend**
 
@@ -150,14 +166,18 @@ Details: [Milestone 5 steps](PROJECT_PLAN.md#milestone-5-steps-first-real-alerts
 
 - Backend: Vitest unit + e2e with supertest (`test/*.e2e-spec.ts`); test data uses a `runId` with a random part,
   test usernames stay short (max 30 characters).
-- **e2e safety (`test/setup-e2e.ts`):** `NEWSDATA_API_KEY` and `RESEND_API_KEY` are emptied (no real fetches or
-  emails: test articles are matched against the developer's rules too), each test file gets its own `QUEUE_PREFIX`
+- **e2e safety (`test/setup-e2e.ts`):** `NEWSDATA_API_KEY` and `RESEND_API_KEY` are emptied and `SLACK_ENABLED=false`
+  (no real fetches, emails or Slack posts: test articles are matched against the developer's rules too), each test file gets its own `QUEUE_PREFIX`
   (removed afterwards). Guarded by a test in `app.e2e-spec.ts`. Tests that need news override `NEWS_SOURCES`,
-  tests that check emails override `EmailProvider` (`overrideProvider`). Delete the notifications your test
+  tests that check emails override `EmailProvider`, Slack tests override `SlackWebhookClient` (`overrideProvider`). Delete the notifications your test
   articles created.
 - Frontend: fake only `orvalFetch` (a small in-memory backend, also answering `/api/channels`), so the real hooks and
   cache are tested. Fixtures in `src/test/fixtures.ts` (`testAlertRule()`, `testChannel()`, ...).
 - Check that at least one or two tests really fail without the fix/feature they cover.
+- **Secrets** (like a Slack webhook URL) never reach API responses, error messages or logs, with a test for each.
+  Test values must not look like real secrets (`.../services/TEXAMPLE/BEXAMPLE/notarealsecret`): GitHub's push
+  protection blocks pushes with secret-shaped strings, even made-up ones like Slack's documentation example.
+- When a new kind of thing arrives (a channel type, ...), re-check the older tests that only know the old kinds.
 
 ## Local development
 

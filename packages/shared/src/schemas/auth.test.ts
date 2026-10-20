@@ -118,7 +118,8 @@ describe('loginSchema', () => {
 describe('validation texts', () => {
   it('has exactly one text for every error key the schemas use', () => {
     // All text keys, e.g. "username.tooShort". "invalid" is the backend's fallback, not a schema key.
-    // The other groups are checked in their own test files (admin-users.test.ts, alert-rules.test.ts).
+    // The other groups are checked in their own test files (admin-users.test.ts, alert-rules.test.ts,
+    // channels.test.ts).
     const otherGroups = [
       'invalid',
       'search',
@@ -128,6 +129,8 @@ describe('validation texts', () => {
       'keyword',
       'category',
       'channelIds',
+      'channelName',
+      'slackWebhookUrl',
     ];
     const textKeys = Object.entries(validationMessagesEn)
       .filter(([group]) => !otherGroups.includes(group))

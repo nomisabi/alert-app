@@ -1,5 +1,6 @@
 import type { AlertArticle } from '../../channels/notification-channel.js';
-import { alertEmail, DESCRIPTION_MAX_LENGTH } from './alert.js';
+import { DESCRIPTION_MAX_LENGTH } from '../../channels/article-text.js';
+import { alertEmail } from './alert.js';
 
 const article = (changes: Partial<AlertArticle> = {}): AlertArticle => ({
   title: 'Tesla unveils a cheaper model',

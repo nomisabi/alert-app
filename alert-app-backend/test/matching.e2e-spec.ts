@@ -72,7 +72,17 @@ describe('Matching (e2e)', () => {
     admin = await signUp('admin');
     await prisma.user.update({ where: { email: emailFor('admin') }, data: { role: 'admin' } });
 
+    // Ann sends to email and Slack, so every rule of hers has two channels. (Slack only goes to
+    // the log here: test/setup-e2e.ts sets SLACK_ENABLED=false.)
     const ann = await signUp('ann');
+    await ann
+      .post('/api/channels')
+      .send({
+        type: 'slack',
+        name: '#ann',
+        webhookUrl: `https://hooks.slack.com/services/T${runId}/Bann/secretann`,
+      })
+      .expect(201);
     await createRule(ann, { name: 'EV', type: 'keywords', keywords: ['electric car', 'Tesla'] });
     await createRule(ann, { name: 'Sports', type: 'category', category: 'sports' });
     await createRule(ann, { name: 'Off', type: 'keywords', keywords: ['Tesla'], enabled: false });
@@ -159,17 +169,31 @@ describe('Matching (e2e)', () => {
     expect(job.data.articleIds).toHaveLength(3);
     firstMatch = job.data;
 
-    const [ev] = await notificationsOf('EV');
-    expect(ev).toMatchObject({ batchId, channelId: rules.EV.channelIds[0] });
-    // Created as pending; the notify job may already have sent it (to the log) by now
-    expect(['pending', 'sent']).toContain(ev.status);
-    expect(ev.articles.map(({ article: { url } }) => url)).toEqual([`${urlPrefix}tesla`]);
+    // One notification per channel of the rule (email and Slack), each with the same articles
+    const ev = await notificationsOf('EV');
+    expect(rules.EV.channelIds).toHaveLength(2);
+    expect(ev.map((notification) => notification.channelId).sort()).toEqual(
+      [...rules.EV.channelIds].sort(),
+    );
+    for (const notification of ev) {
+      expect(notification.batchId).toBe(batchId);
+      // Created as pending; the notify job may already have sent it (to the log) by now
+      expect(['pending', 'sent']).toContain(notification.status);
+      expect(notification.articles.map(({ article: { url } }) => url)).toEqual([
+        `${urlPrefix}tesla`,
+      ]);
+    }
 
     const sports = await notificationsOf('Sports');
-    expect(sports).toHaveLength(1);
-    expect(sports[0].articles.map(({ article: { url } }) => url)).toEqual([`${urlPrefix}match`]);
+    expect(sports).toHaveLength(2);
+    for (const notification of sports) {
+      expect(notification.articles.map(({ article: { url } }) => url)).toEqual([
+        `${urlPrefix}match`,
+      ]);
+    }
 
-    // Switched off, or the user is disabled: nothing
+    // Switched off (it sends to email and Slack too), or the user is disabled: nothing on any channel
+    expect(rules.Off.channelIds).toHaveLength(2);
     expect(await notificationsOf('Off')).toEqual([]);
     expect(await notificationsOf('Bob tech')).toEqual([]);
   });

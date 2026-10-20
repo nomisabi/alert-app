@@ -68,6 +68,19 @@ describe('Alert rules (e2e)', () => {
     return ((await agent.get('/api/channels').expect(200)).body as ChannelList).items[0].id;
   }
 
+  /**
+   * Connects Slack for the user and returns the channel's id. Slack only goes to the log here
+   * (test/setup-e2e.ts sets SLACK_ENABLED=false), so the "test message" always succeeds.
+   */
+  async function slackChannelId(agent: request.Agent, name: string) {
+    const webhookUrl = `https://hooks.slack.com/services/T${runId}/B${name}/secret${name}`;
+    const response = await agent
+      .post('/api/channels')
+      .send({ type: 'slack', name: '#news', webhookUrl })
+      .expect(201);
+    return (response.body as { id: string }).id;
+  }
+
   /** Creates a rule that sends to the user's email channel (unless the body has channelIds). */
   async function createRule(agent: request.Agent, body: object = keywordRule) {
     const channelIds = [await emailChannelId(agent)];
@@ -356,8 +369,9 @@ describe('Alert rules (e2e)', () => {
       const user = await signUp('fch');
       const other = await signUp('fchowner');
       const otherChannelId = await emailChannelId(other);
+      const otherSlackId = await slackChannelId(other, 'fchowner');
 
-      for (const channelIds of [[otherChannelId], ['not-a-uuid']]) {
+      for (const channelIds of [[otherChannelId], [otherSlackId], ['not-a-uuid']]) {
         await user
           .post('/api/alert-rules')
           .send({ ...categoryRule, channelIds })
@@ -377,11 +391,8 @@ describe('Alert rules (e2e)', () => {
     it('replaces the channel list when channelIds is sent, and keeps it otherwise', async () => {
       const user = await signUp('channellist');
       const firstId = await emailChannelId(user);
-      // A second channel, so there is something to switch to (Slack comes in milestone 7)
-      const { id: userId } = await prisma.user.findUniqueOrThrow({
-        where: { email: emailFor('channellist') },
-      });
-      const { id: secondId } = await prisma.channel.create({ data: { userId, type: 'email' } });
+      // A second channel, so there is something to switch to: only Slack, then both
+      const secondId = await slackChannelId(user, 'channellist');
       const rule = await createRule(user);
       expect(rule.channelIds).toEqual([firstId]);
 

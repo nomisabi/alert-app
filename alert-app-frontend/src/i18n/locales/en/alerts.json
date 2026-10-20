@@ -47,6 +47,8 @@
     "channels": "Send to",
     "channelOption": "{{type}} ({{destination}})",
     "channelsHint": "Where the news for this alert is sent.",
+    "slackHint": "Want alerts in Slack too?",
+    "connectSlack": "Connect Slack on the Channels page",
     "create": "Create alert",
     "save": "Save"
   },

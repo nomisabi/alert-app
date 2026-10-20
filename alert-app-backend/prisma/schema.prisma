@@ -144,20 +144,23 @@ model AlertRule {
 // Channels (milestone 4)
 // ---------------------------------------------------------------------------
 
-// Adding a type (slack in milestone 7) is a one-line migration.
+// Adding a type is a one-line migration (ALTER TYPE ... ADD VALUE).
 enum ChannelType {
   email
+  slack
 }
 
 // Where a user's alerts are sent. Every user has exactly one email channel (their account
-// email), created after sign-up. "Only one email channel" is checked in the service.
+// email), created after sign-up, and at most one Slack channel (milestone 7). "One email channel"
+// and "one Slack channel" are checked in the service.
 model Channel {
   id             String             @id @default(uuid(7))
   userId         String
   user           User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   type           ChannelType
   // Settings that depend on the type, checked by the type's Zod schema. Email: {} (the address
-  // is read from user.email when sending, so it is never out of date). Slack later: { webhookUrl }.
+  // is read from user.email when sending, so it is never out of date). Slack: { name, webhookUrl }
+  // (the URL is a secret: never returned by the API or logged).
   config         Json               @default("{}")
   // For the "1 test message per minute" limit. Stored here, so it survives a restart.
   lastTestSentAt DateTime?

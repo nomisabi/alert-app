@@ -10,4 +10,5 @@ export type ChannelType = (typeof ChannelType)[keyof typeof ChannelType];
 
 export const ChannelType = {
   email: 'email',
+  slack: 'slack',
 } as const;

@@ -3,6 +3,7 @@ import {
   APP_CATEGORIES,
   type AlertRule,
   type ApiError,
+  type Channel,
 } from '@alert-app/shared';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -38,9 +39,13 @@ interface FakeRequest {
 
 /**
  * A small in-memory backend: keeps the rules, so the reload after a change shows the new state.
- * `fail` answers one request with an error instead, e.g. the rule limit.
+ * `fail` answers one request with an error instead, e.g. the rule limit. `channels`: the user's channels.
  */
-function serve(initialRules: AlertRule[], fail?: (request: FakeRequest) => ApiError | undefined) {
+function serve(
+  initialRules: AlertRule[],
+  fail?: (request: FakeRequest) => ApiError | undefined,
+  channels: Channel[] = [testChannel()],
+) {
   let rules = [...initialRules];
 
   vi.mocked(orvalFetch).mockImplementation((url: string, init: RequestInit) => {
@@ -55,7 +60,7 @@ function serve(initialRules: AlertRule[], fail?: (request: FakeRequest) => ApiEr
       return Promise.resolve({ items: APP_CATEGORIES.map((id) => ({ id })) });
     }
     if (path === '/api/channels') {
-      return Promise.resolve({ items: [testChannel()] });
+      return Promise.resolve({ items: channels });
     }
     const id = path.split('/').at(-1);
     const changed = (rule: AlertRule, values: Record<string, unknown>): AlertRule => ({
@@ -288,6 +293,68 @@ describe('AlertRulesPage', () => {
     expect(await within(sendTo).findByText('Choose at least one channel.')).toBeInTheDocument();
     expect(email).toHaveFocus();
     expect(changes()).toEqual([]);
+  });
+
+  it('creates an alert that sends only to Slack (email unticked)', async () => {
+    const user = userEvent.setup();
+    const slack = testChannel({ id: 'channel-2', type: 'slack', destination: '#news in Acme' });
+    serve([sports], undefined, [testChannel(), slack]);
+    renderRoute('/alerts');
+
+    const dialog = await openCreateDialog();
+    await user.type(within(dialog).getByRole('textbox', { name: /name/i }), 'Floods');
+    await user.type(within(dialog).getByRole('combobox', { name: /keywords/i }), 'flood{Enter}');
+    await user.click(within(dialog).getByRole('checkbox', { name: 'Email (test@example.com)' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Create alert' }));
+
+    expect(await screen.findByText('Alert Floods created.')).toBeInTheDocument();
+    expect(changes()).toEqual([
+      {
+        method: 'POST',
+        path: '/api/alert-rules',
+        body: { name: 'Floods', type: 'keywords', keywords: ['flood'], channelIds: ['channel-2'] },
+      },
+    ]);
+  });
+
+  it('links to the Channels page when Slack is not connected', async () => {
+    serve([evNews]);
+    renderRoute('/alerts');
+
+    const dialog = await openCreateDialog();
+    expect(within(dialog).getAllByRole('checkbox')).toHaveLength(1);
+    expect(
+      within(dialog).getByRole('link', { name: 'Connect Slack on the Channels page' }),
+    ).toHaveAttribute('href', '/channels');
+  });
+
+  it('shows the Slack icon in "Sends to" for a rule that sends to Slack', async () => {
+    const slack = testChannel({ id: 'channel-2', type: 'slack', destination: '#news in Acme' });
+    serve([testAlertRule({ channelIds: ['channel-1', 'channel-2'] })], undefined, [
+      testChannel(),
+      slack,
+    ]);
+    renderRoute('/alerts');
+
+    const card = (await screen.findByRole('heading', { name: 'EV news' })).closest('li')!;
+    // In the channel list's order: email, then Slack
+    expect(
+      within(card)
+        .getAllByRole('img')
+        .map((icon) => icon.getAttribute('aria-label')),
+    ).toEqual(['Email (test@example.com)', 'Slack (#news in Acme)']);
+  });
+
+  it('offers Slack in "Send to" when it is connected', async () => {
+    const slack = testChannel({ id: 'channel-2', type: 'slack', destination: '#news in Acme' });
+    serve([evNews], undefined, [testChannel(), slack]);
+    renderRoute('/alerts');
+
+    const dialog = await openCreateDialog();
+    const sendTo = within(dialog).getByRole('group', { name: /send to/i });
+    // A new alert starts with every channel ticked
+    expect(within(sendTo).getByRole('checkbox', { name: 'Slack (#news in Acme)' })).toBeChecked();
+    expect(within(dialog).queryByRole('link', { name: /connect slack/i })).not.toBeInTheDocument();
   });
 
   it('says when a keyword is already in the list (ignoring case) instead of ignoring it', async () => {

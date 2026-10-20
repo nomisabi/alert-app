@@ -1,12 +1,16 @@
 import {
   CHANNEL_TEST_COOLDOWN_SECONDS,
+  slackChannelConfigSchema,
   type Channel,
   type ChannelList,
   type ChannelType,
+  type CreateChannelRequest,
+  type UpdateChannelRequest,
 } from '@alert-app/shared';
 import { HttpStatus, Inject, Injectable, Logger } from '@nestjs/common';
 import { differenceInMilliseconds, subSeconds } from 'date-fns';
 import { ApiException } from '../errors/api.exception.js';
+import { PermanentSendError } from '../errors/permanent-send-error.js';
 import type { Prisma } from '../generated/prisma/client.js';
 import type { Language } from '../i18n/i18n.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -45,6 +49,70 @@ export class ChannelsService {
       orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
     });
     return { items: rows.map((row) => this.toChannel(row)) };
+  }
+
+  /**
+   * Connects Slack: one Slack channel per user, saved only if Slack accepts the test message
+   * (so a mistyped or removed webhook is never saved).
+   *
+   * Not in one transaction with the check: the Slack call sits in between, and a transaction
+   * shouldn't stay open while waiting for another service. Two requests at the same moment could
+   * both pass the check; the form's button is disabled while saving, so we accept that.
+   */
+  async create(
+    userId: string,
+    request: CreateChannelRequest,
+    language: Language,
+  ): Promise<Channel> {
+    const existing = await this.prisma.channel.count({ where: { userId, type: request.type } });
+    if (existing > 0) throw new ApiException(HttpStatus.CONFLICT, 'SLACK_ALREADY_CONNECTED');
+
+    const config = { name: request.name, webhookUrl: request.webhookUrl };
+    const user = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: { email: true, name: true },
+    });
+    await this.checkWithTestMessage(request.type, { config, user }, language);
+
+    const row = await this.prisma.channel.create({
+      data: { userId, type: request.type, config, lastTestSentAt: new Date() },
+      include: withUser,
+    });
+    return this.toChannel(row);
+  }
+
+  /**
+   * Edits the user's Slack channel. Only the sent fields change. A new webhook URL is saved only
+   * if Slack accepts the test message; a new name alone doesn't contact Slack.
+   */
+  async update(
+    userId: string,
+    channelId: string,
+    request: UpdateChannelRequest,
+    language: Language,
+  ): Promise<Channel> {
+    const row = await this.prisma.channel.findFirst({
+      where: { id: channelId, userId },
+      include: withUser,
+    });
+    if (!row) throw new ApiException(HttpStatus.NOT_FOUND, 'CHANNEL_NOT_FOUND');
+    // The email channel is the account email: nothing to edit
+    if (row.type !== 'slack') {
+      throw new ApiException(HttpStatus.BAD_REQUEST, 'CHANNEL_NOT_EDITABLE');
+    }
+
+    const current = slackChannelConfigSchema.parse(row.config);
+    const config = { ...current, ...request };
+    const urlChanged = config.webhookUrl !== current.webhookUrl;
+    if (urlChanged)
+      await this.checkWithTestMessage(row.type, toTarget({ ...row, config }), language);
+
+    const updated = await this.prisma.channel.update({
+      where: { id: row.id },
+      data: { config, ...(urlChanged && { lastTestSentAt: new Date() }) },
+      include: withUser,
+    });
+    return this.toChannel(updated);
   }
 
   /**
@@ -112,6 +180,30 @@ export class ChannelsService {
     }
   }
 
+  /**
+   * Sends the test message to settings that aren't saved yet. Slack refusing it (a wrong or
+   * removed webhook) → 400 SLACK_WEBHOOK_INVALID under the URL field; Slack failing or not
+   * answering → 502 (try again later). The details only go to the log (never the URL: see
+   * SlackWebhookClient).
+   */
+  private async checkWithTestMessage(
+    type: ChannelType,
+    target: ChannelTarget,
+    language: Language,
+  ): Promise<void> {
+    try {
+      await this.channelOf(type).send(target, { kind: 'test' }, language);
+    } catch (error) {
+      this.logger.warn(`Test message for a new ${type} setup failed: ${String(error)}`);
+      if (error instanceof PermanentSendError) {
+        throw new ApiException(HttpStatus.BAD_REQUEST, 'SLACK_WEBHOOK_INVALID', [
+          { field: 'webhookUrl', key: 'errors:SLACK_WEBHOOK_INVALID' },
+        ]);
+      }
+      throw new ApiException(HttpStatus.BAD_GATEWAY, 'CHANNEL_TEST_FAILED');
+    }
+  }
+
   /** The channel doesn't exist for this user (404), or its last test is too recent (429). */
   private async throwNotFoundOrTooSoon(
     userId: string,
@@ -151,6 +243,6 @@ export class ChannelsService {
   }
 }
 
-function toTarget(row: ChannelRow): ChannelTarget {
+function toTarget(row: Pick<ChannelRow, 'config' | 'user'>): ChannelTarget {
   return { config: row.config, user: row.user };
 }

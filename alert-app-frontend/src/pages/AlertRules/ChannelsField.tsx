@@ -5,14 +5,21 @@ import {
   FormGroup,
   FormHelperText,
   FormLabel,
+  Link,
+  Typography,
 } from '@mui/material';
 import { useId } from 'react';
 import { useController } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
+import { Link as RouterLink } from 'react-router';
 import { fieldErrorText } from '../../global/utils/fieldError';
 import type { ChannelsFieldProps } from '../../types/alert-rules/alertRules';
+import styles from './AlertRulesPage.module.scss';
 
-/** "Send to": one checkbox per channel of the user. At least one must be ticked. */
+/**
+ * "Send to": one checkbox per channel of the user. At least one must be ticked.
+ * Without Slack, a link to the Channels page says it can be connected.
+ */
 export function ChannelsField({ control, channels }: ChannelsFieldProps) {
   const { t } = useTranslation(['alerts', 'channels']);
   const helperTextId = useId();
@@ -20,6 +27,7 @@ export function ChannelsField({ control, channels }: ChannelsFieldProps) {
     field: { ref, value, onChange, onBlur },
     fieldState: { error },
   } = useController({ control, name: 'channelIds' });
+  const hasSlack = channels.some((channel) => channel.type === 'slack');
 
   // Keeps the ids in the order of the channel list, whatever order they were ticked in
   const toggle = (channelId: string, checked: boolean) =>
@@ -56,6 +64,14 @@ export function ChannelsField({ control, channels }: ChannelsFieldProps) {
       <FormHelperText id={helperTextId} aria-live="polite">
         {fieldErrorText(error) ?? t('dialog.channelsHint')}
       </FormHelperText>
+      {!hasSlack && (
+        <Typography variant="body2" color="text.secondary" className={styles.connectSlack}>
+          {t('dialog.slackHint')}{' '}
+          <Link component={RouterLink} to="/channels">
+            {t('dialog.connectSlack')}
+          </Link>
+        </Typography>
+      )}
     </FormControl>
   );
 }

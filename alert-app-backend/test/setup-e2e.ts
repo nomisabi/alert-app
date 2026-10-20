@@ -12,6 +12,11 @@ process.env.NEWSDATA_API_KEY = '';
 // (LogEmailProvider). Tests that check emails replace EmailProvider with a fake.
 process.env.RESEND_API_KEY = '';
 
+// Never post to real Slack channels: the developer's rules may send to their Slack (a real
+// webhook URL in the database). Slack messages only go to the log (LogSlackWebhookClient).
+// Tests that check Slack messages replace SlackWebhookClient with a fake.
+process.env.SLACK_ENABLED = 'false';
+
 // Own queues per test file: the tests never take jobs of the running backend (or of another
 // test file running in parallel), and the backend never takes theirs.
 const prefix = `e2e-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;

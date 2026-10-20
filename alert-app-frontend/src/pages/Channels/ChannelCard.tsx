@@ -1,3 +1,4 @@
+import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import SendIcon from '@mui/icons-material/Send';
 import { Button, Card, CardActions, CardContent, Typography } from '@mui/material';
 import { useTranslation } from 'react-i18next';
@@ -5,8 +6,8 @@ import { ChannelIcon } from '../../global/components/ChannelIcon/ChannelIcon';
 import type { ChannelCardProps } from '../../types/channels/channels';
 import styles from './ChannelsPage.module.scss';
 
-/** One channel: its type, where it sends to, and the "Send test message" button. */
-export function ChannelCard({ channel, isSending, onSendTest }: ChannelCardProps) {
+/** One channel: its type, where it sends to, "Send test message" and (for Slack) "Edit". */
+export function ChannelCard({ channel, isSending, onSendTest, onEdit }: ChannelCardProps) {
   const { t } = useTranslation('channels');
 
   return (
@@ -38,6 +39,18 @@ export function ChannelCard({ channel, isSending, onSendTest }: ChannelCardProps
         >
           {t('sendTest')}
         </Button>
+        {onEdit && (
+          <Button
+            startIcon={<EditOutlinedIcon />}
+            onClick={() => onEdit(channel)}
+            aria-label={t('editFor', {
+              type: t(`types.${channel.type}`),
+              destination: channel.destination,
+            })}
+          >
+            {t('edit')}
+          </Button>
+        )}
       </CardActions>
     </Card>
   );

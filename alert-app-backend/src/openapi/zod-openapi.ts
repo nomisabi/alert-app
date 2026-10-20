@@ -8,9 +8,11 @@ import {
   channelListSchema,
   channelSchema,
   createAlertRuleRequestSchema,
+  createChannelRequestSchema,
   fetchNewsResponseSchema,
   updateAdminUserRequestSchema,
   updateAlertRuleRequestSchema,
+  updateChannelRequestSchema,
 } from '@alert-app/shared';
 import { applyDecorators } from '@nestjs/common';
 import { ApiQuery, type OpenAPIObject } from '@nestjs/swagger';
@@ -36,6 +38,8 @@ const apiSchemas = {
   UpdateAlertRuleRequest: updateAlertRuleRequestSchema,
   Channel: channelSchema,
   ChannelList: channelListSchema,
+  CreateChannelRequest: createChannelRequestSchema,
+  UpdateChannelRequest: updateChannelRequestSchema,
   FetchNewsResponse: fetchNewsResponseSchema,
 } satisfies Record<string, z.ZodType>;
 

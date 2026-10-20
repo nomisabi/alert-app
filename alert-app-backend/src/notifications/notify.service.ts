@@ -100,8 +100,7 @@ export class NotifyService {
         },
       });
       this.logger.warn(
-        `Notification ${notificationId}: attempt ${attempt}/${maxAttempts} failed` +
-          `${isPermanent ? ' (permanent, not retried)' : ''}: ${message}`,
+        `Notification ${notificationId}: ${failureText(attempt, maxAttempts, isPermanent)}: ${message}`,
       );
       // UnrecoverableError: BullMQ marks the job failed without the remaining attempts
       throw isPermanent ? new UnrecoverableError(message) : error;
@@ -112,4 +111,14 @@ export class NotifyService {
       data: { attempts: { increment: 1 }, status: 'sent', sentAt: new Date(), error: null },
     });
   }
+}
+
+/**
+ * What happens after a failed attempt, for the log. A permanent error is never retried, so it
+ * doesn't show "1/3" (which would suggest more attempts are coming).
+ */
+export function failureText(attempt: number, maxAttempts: number, isPermanent: boolean): string {
+  if (isPermanent) return `failed, not retried (permanent error)`;
+  if (attempt >= maxAttempts) return `attempt ${attempt}/${maxAttempts} failed, giving up`;
+  return `attempt ${attempt}/${maxAttempts} failed, will retry`;
 }

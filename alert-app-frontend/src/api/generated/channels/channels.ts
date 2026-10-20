@@ -21,10 +21,10 @@ import type {
   UseQueryResult,
 } from '@tanstack/react-query';
 
-import type { ChannelList } from '../model';
+import type { Channel, ChannelList, CreateChannelRequest, UpdateChannelRequest } from '../model';
 
 import { orvalFetch } from '../../../global/utils/apiFetch';
-import type { ErrorType } from '../../../global/utils/apiFetch';
+import type { ErrorType, BodyType } from '../../../global/utils/apiFetch';
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 
@@ -156,6 +156,213 @@ export function useGetChannels<
   return withQueryKey(query, queryOptions.queryKey);
 }
 
+export const getCreateChannelUrl = () => {
+  return `/api/channels`;
+};
+
+/**
+ * @summary Connect Slack (one per user). Sends the test message first, saves only if Slack accepts it.
+ */
+export const createChannel = async (
+  createChannelRequest: CreateChannelRequest,
+  options?: Parameters<typeof orvalFetch>[1],
+): Promise<Channel> => {
+  const getHeaders = (
+    h?: NonNullable<RequestInit['headers']>,
+  ): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(
+          h as Iterable<Iterable<string>>,
+          (entry) => Array.from(entry) as [string, string],
+        ),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+  return orvalFetch<Channel>(getCreateChannelUrl(), {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(createChannelRequest),
+  });
+};
+
+export const getCreateChannelMutationKey = () => ['createChannel'] as const;
+
+export const getCreateChannelMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createChannel>>,
+    TError,
+    CreateChannelMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof orvalFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createChannel>>,
+  TError,
+  CreateChannelMutationVariables,
+  TContext
+> => {
+  const mutationKey = getCreateChannelMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createChannel>>,
+    CreateChannelMutationVariables
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createChannel(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateChannelMutationResult = NonNullable<Awaited<ReturnType<typeof createChannel>>>;
+export type CreateChannelMutationBody = BodyType<CreateChannelRequest>;
+export type CreateChannelMutationError = ErrorType<void>;
+export type CreateChannelMutationVariables = { data: BodyType<CreateChannelRequest> };
+
+/**
+ * @summary Connect Slack (one per user). Sends the test message first, saves only if Slack accepts it.
+ */
+export const useCreateChannel = <TError = ErrorType<void>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof createChannel>>,
+      TError,
+      CreateChannelMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof orvalFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof createChannel>>,
+  TError,
+  CreateChannelMutationVariables,
+  TContext
+> => {
+  return useMutation(getCreateChannelMutationOptions(options), queryClient);
+};
+export const getUpdateChannelUrl = (id: string) => {
+  return `/api/channels/${id}`;
+};
+
+/**
+ * @summary Edit the Slack channel. Only the sent fields change; a new webhook URL gets the test message first.
+ */
+export const updateChannel = async (
+  id: string,
+  updateChannelRequest: UpdateChannelRequest,
+  options?: Parameters<typeof orvalFetch>[1],
+): Promise<Channel> => {
+  const getHeaders = (
+    h?: NonNullable<RequestInit['headers']>,
+  ): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(
+          h as Iterable<Iterable<string>>,
+          (entry) => Array.from(entry) as [string, string],
+        ),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+  return orvalFetch<Channel>(getUpdateChannelUrl(id), {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(updateChannelRequest),
+  });
+};
+
+export const getUpdateChannelMutationKey = () => ['updateChannel'] as const;
+
+export const getUpdateChannelMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateChannel>>,
+    TError,
+    UpdateChannelMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof orvalFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateChannel>>,
+  TError,
+  UpdateChannelMutationVariables,
+  TContext
+> => {
+  const mutationKey = getUpdateChannelMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateChannel>>,
+    UpdateChannelMutationVariables
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateChannel(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateChannelMutationResult = NonNullable<Awaited<ReturnType<typeof updateChannel>>>;
+export type UpdateChannelMutationBody = BodyType<UpdateChannelRequest>;
+export type UpdateChannelMutationError = ErrorType<void>;
+export type UpdateChannelMutationVariables = { id: string; data: BodyType<UpdateChannelRequest> };
+
+/**
+ * @summary Edit the Slack channel. Only the sent fields change; a new webhook URL gets the test message first.
+ */
+export const useUpdateChannel = <TError = ErrorType<void>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof updateChannel>>,
+      TError,
+      UpdateChannelMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof orvalFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof updateChannel>>,
+  TError,
+  UpdateChannelMutationVariables,
+  TContext
+> => {
+  return useMutation(getUpdateChannelMutationOptions(options), queryClient);
+};
 export const getSendChannelTestUrl = (id: string) => {
   return `/api/channels/${id}/test`;
 };

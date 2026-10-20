@@ -5,14 +5,43 @@
   "loadError": "Your channels could not be loaded.",
   "retry": "Try again",
   "types": {
-    "email": "Email"
+    "email": "Email",
+    "slack": "Slack"
   },
   "hints": {
-    "email": "Your account email. Alerts are sent here."
+    "email": "Your account email. Alerts are sent here.",
+    "slack": "Your Slack channel. Alerts are posted here."
   },
   "sendTest": "Send test message",
   "sendTestFor": "Send a test message to {{type}} {{destination}}",
+  "edit": "Edit",
+  "editFor": "Edit {{type}} {{destination}}",
   "notify": {
-    "testSent": "Test message sent to {{destination}}."
+    "testSent": "Test message sent to {{destination}}.",
+    "slackConnected": "Slack connected. A test message was sent to {{destination}}.",
+    "slackUpdated": "Slack updated.",
+    "slackUpdatedWithTest": "Slack updated. A test message was sent to {{destination}}."
+  },
+  "connect": {
+    "notConnected": "Not connected",
+    "hint": "Get your alerts in a Slack channel too.",
+    "button": "Connect Slack",
+    "title": "Connect Slack",
+    "editTitle": "Edit Slack",
+    "intro": "Alerts are posted to one Slack channel through an incoming webhook: a private link that lets this app post there.",
+    "stepsTitle": "How to get a webhook URL",
+    "step1": "Go to api.slack.com/apps and create an app (\"From scratch\") in your workspace.",
+    "step2": "Open \"Incoming Webhooks\" and turn it on.",
+    "step3": "Click \"Add New Webhook\", choose the Slack channel and copy the webhook URL.",
+    "guide": "Slack's guide to incoming webhooks",
+    "newTab": "(opens in a new tab)",
+    "name": "Name",
+    "nameHint": "Shown in this app, e.g. #news in Acme.",
+    "webhookUrl": "Webhook URL",
+    "webhookUrlHint": "Starts with https://hooks.slack.com/services/",
+    "webhookUrlEditHint": "Leave empty to keep the current webhook URL.",
+    "secret": "Keep the webhook URL private: anyone who has it can post to your Slack channel. We never show it again. When you save a new URL, we send a test message to check it.",
+    "submit": "Connect",
+    "save": "Save"
   }
 }

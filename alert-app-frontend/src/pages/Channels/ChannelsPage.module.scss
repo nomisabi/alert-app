@@ -1,6 +1,6 @@
 @use '../../styles/mixins' as *;
 
-// One column on phones, two from tablets (Slack joins in milestone 7)
+// One column on phones, two from tablets (email and Slack side by side)
 .list {
   display: grid;
   gap: spacing(2);
@@ -43,4 +43,32 @@
 
 .cardActions {
   padding: 0 spacing(2) spacing(2);
+}
+
+// "Connect Slack" dialog
+.form {
+  display: flex;
+  flex-direction: column;
+  height: 100%; // full-screen dialog on phones: buttons stay at the bottom
+}
+
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: spacing(2.5);
+}
+
+.steps {
+  margin: spacing(1) 0;
+  padding-left: spacing(3);
+}
+
+.linkIcon {
+  margin-left: spacing(0.5);
+  vertical-align: middle;
+}
+
+// "(opens in a new tab)" for screen readers, instead of the icon
+.visuallyHidden {
+  @include visually-hidden;
 }

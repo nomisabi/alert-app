@@ -3,8 +3,9 @@ import { HttpStatus } from '@nestjs/common';
 import i18next from 'i18next';
 import { emailsEn } from './locales/en/emails.js';
 import { errorsEn } from './locales/en/errors.js';
+import { slackEn } from './locales/en/slack.js';
 
-// Backend translations: error messages in API responses and email texts.
+// Backend translations: error messages in API responses, email and Slack texts.
 // Same library and {{value}} syntax as the frontend.
 
 export const SUPPORTED_LANGUAGES = ['en'] as const;
@@ -14,11 +15,11 @@ const FALLBACK_LANGUAGE: Language = 'en';
 const i18n = i18next.createInstance();
 void i18n.init({
   resources: {
-    en: { errors: errorsEn, validation: validationMessagesEn, emails: emailsEn },
+    en: { errors: errorsEn, validation: validationMessagesEn, emails: emailsEn, slack: slackEn },
   },
   lng: FALLBACK_LANGUAGE,
   fallbackLng: FALLBACK_LANGUAGE,
-  ns: ['errors', 'validation', 'emails'],
+  ns: ['errors', 'validation', 'emails', 'slack'],
   defaultNS: 'errors',
   // The resources are in memory, so init can finish synchronously
   initAsync: false,
@@ -63,6 +64,15 @@ export function translateEmail(
   values: Record<string, string | number> = {},
 ): string {
   return i18n.t(`emails:${key}`, { lng: language, ...values });
+}
+
+/** A Slack message text, e.g. translateSlack('en', 'alert.title', { count: 2, rule: 'EV news' }). */
+export function translateSlack(
+  language: Language,
+  key: string,
+  values: Record<string, string | number> = {},
+): string {
+  return i18n.t(`slack:${key}`, { lng: language, ...values });
 }
 
 /** Text for an i18n key like `validation:username.tooShort` or `errors:USERNAME_IS_ALREADY_TAKEN`. */

@@ -29,6 +29,12 @@ export const errorsEn = {
   CHANNEL_TEST_FAILED: "We couldn't send the test message. Please try again later.",
   // Also the field error under "Send to" (a channel that doesn't exist or isn't the user's)
   INVALID_CHANNEL: 'Choose one of your channels.',
+  // PATCH on the email channel: it's the account email
+  CHANNEL_NOT_EDITABLE: "This channel can't be edited.",
+  SLACK_ALREADY_CONNECTED: "You've already connected Slack.",
+  // Also the field error under "Webhook URL": Slack rejected the test message (4xx)
+  SLACK_WEBHOOK_INVALID:
+    "Slack didn't accept this webhook. Check that you copied the whole URL and that the webhook still exists.",
   NEWS_SOURCE_NOT_CONFIGURED: 'No news source is set up (NEWSDATA_API_KEY is missing).',
 
   // Better Auth

@@ -2,10 +2,11 @@ import type { ChannelType } from '@alert-app/shared';
 import EmailOutlinedIcon from '@mui/icons-material/EmailOutlined';
 import type { SvgIconProps } from '@mui/material';
 import type { ComponentType } from 'react';
+import { SlackIcon } from './SlackIcon';
 
-// Slack (milestone 7): MUI has no brand icons, so it gets its own SvgIcon.
 const icons: Record<ChannelType, ComponentType<SvgIconProps>> = {
   email: EmailOutlinedIcon,
+  slack: SlackIcon,
 };
 
 interface ChannelIconProps extends SvgIconProps {

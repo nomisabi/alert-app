@@ -1,6 +1,6 @@
 # Alert App: Project Plan
 
-Last updated: 2026-10-20 (milestone 5 done: first real alerts; next: milestone 7; Bull Board first in TODO)
+Last updated: 2026-10-20 (milestone 7 done: Slack; the current scope is finished, next: questions for the manager)
 
 This document holds everything we have decided so far, and why. The full discussion is in
 [docs/claude-conversations/](claude-conversations/). The short version for the current scope is
@@ -100,8 +100,10 @@ Free news APIs we compared (October 2026; third-party sources disagreed on some 
     are written as React components. **Milestone 4 uses plain HTML** because of the time (React Email is in the TODO).
   - Without a verified domain, Resend only delivers to the Resend account owner's email (fine for development).
   - It sits behind an `EmailProvider` interface, so switching to SendGrid, Mailgun or SES is one small class.
-- **Slack: not decided yet.** Incoming webhooks (user pastes a URL, very easy) are probably enough.
-  A Slack app with OAuth is nicer but more work. **Research and decide when we implement milestone 7.**
+- **Slack: incoming webhook** (decided with the developer at the start of milestone 7). The user creates a
+  webhook in their Slack workspace and pastes its URL into our app. An "Add to Slack" button (our own Slack app with
+  OAuth and the `incoming-webhook` scope) is nicer, but needs an HTTPS redirect URL (a tunnel like ngrok locally)
+  and more code. It also ends with a webhook URL, so it can be added later without changing `SlackChannel` (TODO).
 
 ### Admin
 
@@ -371,7 +373,7 @@ stay the same, so older notes still match.
 | 3   | Alert rules                  | Create, edit, delete, list own rules. Final category list + NewsData.io mapping          | Done (commit) |
 | 4   | Email channel                | Connect an email address, send a test message (Resend)                                   | Done (branch) |
 | 5   | First real alerts            | NewsData.io → matcher → instant email (BullMQ)                                           | Done (branch) |
-| 7   | Slack                        | Slack channel through `NotificationChannel`                                              | **Next**      |
+| 7   | Slack                        | Slack channel through `NotificationChannel`                                              | Done (branch) |
 | 6   | Digests                      | Hourly and daily delivery, time zone setting                                             | TODO          |
 | 8   | Admin: rules, sources, log   | All rules, source status and settings, notification log                                  | TODO          |
 | 9   | Email verification and reset | Email verification, password reset                                                       | TODO          |
@@ -1200,12 +1202,159 @@ desc`, `take: 1`, served by the index on `alertRuleId` + `sentAt`); `lastAlertAt
     a backend type error stops the dev server; make every job safe to run twice; e2e tests must never reach real
     providers (the test articles meet the developer's real rules).
 
+### Milestone 7 steps (Slack)
+
+Branch: `milestone-7-slack`.
+
+**Scope: included**
+
+- **Slack through an incoming webhook** (decided with the developer): the user creates a webhook in their Slack
+  workspace (a small Slack app with "Incoming Webhooks" on, one webhook per Slack channel) and pastes its URL. A
+  webhook URL is tied to one channel; posting JSON to it is all it takes (no token), so **the URL is a secret**.
+- **One Slack channel per user** (decided with the developer in step 2, like the one email channel; earlier: 3).
+- **Page `/channels`:** while the user has no Slack channel, a **"Connect Slack"** card opens a dialog (full
+  screen on phones) with **Name** (e.g. "#news in Acme", shown on the card, because the URL doesn't say where it
+  posts and is never shown again) and **Webhook URL**, plus short how-to steps and a link to Slack's guide. After
+  that, the Slack card has "Send test message" like email and **"Edit"**.
+- **Editing Slack** (asked for by the developer after step 3): "Edit" on the Slack card opens the same dialog ("Edit
+  Slack"). The name starts filled in; the URL field starts **empty, because the API never returns the URL**: empty
+  keeps the current URL. A new URL gets the test message first (like connecting), a name-only change doesn't call
+  Slack. This also fixes a removed webhook (paste a new one).
+- **Checked when added** (decided with the developer): saving sends the **test message** to Slack first (the existing
+  `{ kind: 'test' }`, no new message kind; it counts as the channel's test for the 1-per-minute limit). Slack
+  rejects it (4xx) → nothing saved, 400 `SLACK_WEBHOOK_INVALID` under the URL field; Slack down → 502.
+- **Only Slack's webhook address:** `https://hooks.slack.com/services/<3 ids>` (`SLACK_WEBHOOK_URL_PATTERN`, no
+  extra text, no Workflow `/triggers/` URLs). Accepting any URL would let a user make our server call
+  internal addresses (SSRF, server-side request forgery).
+- **Alert messages:** `SlackChannel` renders `test` and `alert` as Slack Block Kit (rule name, each article as a
+  linked title with source and time and the shortened description, "Manage your alerts") plus a plain `text`
+  fallback (phone notifications). Slack allows 50 blocks per message, so **15 articles + "and N more"**. `&`, `<`, `>`
+  are escaped.
+- **Errors:** 4xx except 429 → `PermanentSendError` (no retry: `no_service`, `channel_not_found`,
+  `channel_is_archived`, `action_prohibited`, `invalid_token`, `invalid_payload`, ...); 429, 5xx, network errors and
+  timeouts → the normal 3 attempts. The URL is never logged and never returned by the API.
+- **"Send to" checkboxes and "Sends to" icons** show Slack channels without changes; `ChannelIcon` gets a Slack
+  `SvgIcon`. The notify worker, queue and matcher don't change (they only call `ChannelsService.send()`).
+- **e2e safety:** sending goes through an injectable `SlackWebhookClient` (`FetchSlackWebhookClient` /
+  `LogSlackWebhookClient`, chosen by `SLACK_ENABLED`, default `true`). `setup-e2e.ts` sets `SLACK_ENABLED=false`,
+  because test articles are matched against the developer's real rules, which may now send to real Slack channels.
+- **A test Slack workspace** (manual, by the developer, step 4a): a free workspace, a Slack app with a webhook, for
+  checking real messages.
+
+**Scope: left out**
+
+- **Deleting channels** (TODO): no delete button in this scope. When it comes: reject the delete (409) while **any**
+  rule uses the channel, even if the rule has other channels; the email channel can't be deleted. (A Slack webhook
+  that was removed can be replaced with "Edit".)
+- "Add to Slack" with OAuth, encrypting webhook URLs in the database (plain JSON
+  for now, needed before production), Slack DMs, bot tokens, threads.
+
+**Steps**
+
+- [x] 0. Scope (this section).
+- [x] 1. Model: `ChannelType` gets `slack` (migration `ALTER TYPE ... ADD VALUE`), Slack's `config` =
+      `{ name, webhookUrl }` (checked by its Zod schema). No new columns. Migration and `prisma generate` run in
+      step 4 (like M4): the generated `slack` type would break `ChannelsService` until the shared `CHANNEL_TYPES`
+      (step 2) and `SlackChannel` (step 4) exist. "One Slack channel per user" is checked in the service, like
+      "one email channel".
+- [x] 2. API contract. Shared: `CHANNEL_TYPES` + `slack`, `CHANNEL_NAME_MAX_LENGTH` (50),
+      `SLACK_WEBHOOK_URL_PATTERN`; `schemas/channels.ts`: `channelNameSchema`, `slackWebhookUrlSchema`,
+      `slackChannelConfigSchema` (what Slack stores in `config`, also its `validateConfig()`),
+      `createChannelRequestSchema` (split by `type`, only `slack`; also the form schema),
+      `updateChannelRequestSchema` (`name?`, `webhookUrl?`), `editSlackChannelFormSchema` (empty URL = keep); validation keys
+      `channelName.required/tooLong`, `slackWebhookUrl.required/invalid`; `schemas/channels.test.ts` (SSRF cases:
+      http, other hosts, look-alike hosts, extra text, query, Workflow URLs).
+
+  | Endpoint                  | Request                                                | Success                                  | Errors                                                                                                                                                   |
+  | ------------------------- | ------------------------------------------------------ | ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+  | `POST /api/channels`      | `{ type: 'slack', name, webhookUrl }`                  | 201 `Channel` (`destination` = the name) | 400 `VALIDATION_FAILED`, 400 `SLACK_WEBHOOK_INVALID` (field error on `webhookUrl`), 409 `SLACK_ALREADY_CONNECTED`, 502 `CHANNEL_TEST_FAILED`             |
+  | `PATCH /api/channels/:id` | `{ name?, webhookUrl? }` (only the sent fields change) | 200 `Channel`                            | 400 `VALIDATION_FAILED`, 400 `CHANNEL_NOT_EDITABLE` (the email channel), 400 `SLACK_WEBHOOK_INVALID`, 404 `CHANNEL_NOT_FOUND`, 502 `CHANNEL_TEST_FAILED` |
+  - Order: Zod → "already connected" → test message to Slack → save (`lastTestSentAt` = now). Slack 4xx → 400
+    `SLACK_WEBHOOK_INVALID` (the URL is wrong), Slack 5xx/timeout → 502 (try again later).
+  - **Accepted race:** two clicks at the same moment could both pass "already connected" (the Slack call sits
+    between the check and the save, and a transaction shouldn't stay open while waiting for another service). The
+    button is disabled while saving. No rate limit on this endpoint yet (milestone 10).
+  - `PATCH` with a new `webhookUrl` sends the test message to it before saving (sets `lastTestSentAt`); with only
+    `name`, nothing is sent. Added after step 3 (asked for by the developer).
+  - `operationId`s `createChannel` and `updateChannel`, OpenAPI schemas `CreateChannelRequest` and
+    `UpdateChannelRequest`.
+  - **Temporary until step 4b (done, removed):** `ChannelsService.create()` and `update()` answered 501
+    `NOT_IMPLEMENTED`. Frontend: `ChannelIcon` uses MUI's `ForumOutlined` for Slack until step 3, `types.slack` and
+    `hints.slack` texts added.
+
+- [x] 3. Frontend UI (sample data): the Channels page has **a Slack card next to the email card** (asked for by the
+      developer): "Not connected" + **"Connect Slack"** until it's connected, then the name and "Send test message"
+      like email. `SlackConnectCard`, `SlackChannelDialog` (connect and edit; Name, Webhook URL, three how-to steps, a link to Slack's
+      guide in a new tab, "keep the URL private"; form schema = `slackChannelConfigSchema`), `SlackIcon` (Slack logo
+      path from Simple Icons, CC0, one color like the other channel icons) in `ChannelIcon`. **Alert dialog:** Slack
+      is a "Send to" checkbox when connected (no change needed: one checkbox per channel, ticked for new alerts);
+      without Slack, "Want alerts in Slack too? Connect Slack on the Channels page" (link) under the checkboxes (asked
+      for by the developer). **"Edit"** on the Slack card (added after the first review): same dialog, name filled
+      in, URL empty = keep. Tests written with it (6 new, 93 pass).
+  - Temporary until step 5: "Connect" and "Edit" only change a sample Slack card on the page (`pages/Channels/sampleSlackChannel.ts`,
+    gone after a reload, not in the alert dialog); its "Send test message" calls the real API and gets a 404.
+- [ ] 4. Backend, in parts:
+  - [ ] 4a. **Manual first: the developer creates a test Slack workspace**, a Slack app in it with Incoming Webhooks
+        on, and a webhook for a test channel (the URL goes into the app only, never into the repo). Then
+        `SlackChannel`, the Block Kit messages and `SlackWebhookClient` (+ unit tests).
+    - [x] Code: migration `slack_channel_type` (applied, client regenerated). `src/channels/slack/`:
+          `SlackChannel` (`validateConfig()` = `slackChannelConfigSchema`, `destination()` = name),
+          `slack-messages.ts` (`slackMessage()`: test = one section; alert = header, one section per article (max
+          15), "…and N more" context, divider, "Manage your alerts"; `escapeSlack()` for &, <, > (so `<!channel>`
+          in a title can't notify everyone), `|` in link URLs percent-encoded, only http(s) links, long titles cut,
+          header max 150), `SlackWebhookClient` (`FetchSlackWebhookClient`: `fetch`, 10 s timeout, 4xx except 429 →
+          `PermanentSendError`, the response body only kept when it looks like a Slack code, never the URL;
+          `LogSlackWebhookClient`). `SLACK_ENABLED` (default `true`, `z.stringbool()`) in `env.ts` and
+          `.env.example`. Texts in `src/i18n/locales/en/slack.ts` (`translateSlack()`).
+          `shortenDescription()`/`isWebLink()` moved to `src/channels/article-text.ts` (email and Slack). 24 new
+          unit tests (88 pass); the escaping tests fail without `escapeSlack()`.
+    - [ ] Manual: the developer's test workspace with a real webhook (connect, test message, a real alert). Open at
+          the wrap-up: not confirmed in the milestone's conversation.
+  - [x] 4b. `POST /api/channels` (one per user, test message before saving), `PATCH /api/channels/:id` + e2e
+        tests. `ChannelsService.create()` / `update()` share `checkWithTestMessage()`: Slack 4xx
+        (`PermanentSendError`) → 400 `SLACK_WEBHOOK_INVALID` on `webhookUrl`, anything else → 502; nothing is saved
+        when it fails (not even a new name sent with the URL). A name-only `PATCH` doesn't call Slack and keeps
+        `lastTestSentAt`. `channels.e2e-spec.ts` replaces `SlackWebhookClient` with a fake (+9 tests, 18 there, 69
+        e2e in total); "one per user" and "test before saving" checked to fail without their code.
+  - [x] 4c. `SLACK_ENABLED` in `setup-e2e.ts` and the guard test, an alert reaching Slack through the worker.
+        `setup-e2e.ts` sets `SLACK_ENABLED=false` (`LogSlackWebhookClient`); the guard in `app.e2e-spec.ts` checks it
+        (fails without the line). `notifications.e2e-spec.ts` replaces `SlackWebhookClient` with a fake: a rule that
+        sends only to Slack gets one Slack post per fetch (header, the article as a link), no email. 70 e2e pass.
+- [x] 5. Connect (delete sample data, regenerate Orval). Orval regenerated (`createChannel`, `updateChannel`,
+      `CreateChannelRequest`, `UpdateChannelRequest`). Hooks `useCreateChannel` and `useUpdateChannel`
+      (`src/api/channels/`, both reload the channel list, so "Send to" in the alert dialog sees Slack too).
+      `ChannelsPage`: connect = `POST`, edit = `PATCH` with the name and the URL only when one was typed; server
+      errors stay in the dialog (`SLACK_WEBHOOK_INVALID` under the URL field). `sampleSlackChannel.ts` deleted.
+      The page test's fake backend keeps channels in memory; +3 tests (request bodies, Slack's rejection, a new
+      URL), 95 pass. Next: the developer tests it in the browser with the test Slack workspace.
+- Fix outside the scope (found by the developer): the notify log said "attempt 1/3 failed (permanent, not
+  retried)" for a permanent error, which suggests more attempts are coming. Now `failureText()` in
+  `notify.service.ts`: "failed, not retried (permanent error)", "attempt 1/3 failed, will retry", "attempt 3/3
+  failed, giving up" (+ unit test). The "[Resend API Error]" line before it is printed by the Resend SDK itself.
+- [x] 6. Test gaps. Backend e2e: "Send test message" for Slack (posts to the stored URL; right after connecting
+      it's 429, because connecting counts as the test), Slack refusing it later → 502, the list never contains the
+      URL, `PATCH` with nothing new (empty body, same URL) doesn't call Slack. Unit: `SLACK_ENABLED` parsing
+      (`env.spec.ts`). Frontend: Slack icon in "Sends to", 502 shown in the dialog (values kept), Cancel sends
+      nothing and the dialog starts empty again. Matching e2e (asked for by the developer): Ann also has Slack, so each rule
+      gets one notification per channel (email + Slack) and a switched-off rule gets none on either (fails when
+      the matcher ignores `enabled`). Email-only tests reviewed (asked for by the developer): `alert-rules.e2e-spec.ts` used
+      a second _email_ channel written straight into the database (against "one email channel"): now a real Slack
+      channel; another user's Slack channel → 400 `INVALID_CHANNEL` too. `notifications.e2e-spec.ts`: a rule with
+      email + Slack where Slack fails for good (`no_service`): Slack `failed` after 1 attempt, the email still
+      `sent`. Frontend: "Send test message" on the Slack card; an alert with email unticked sends only Slack's id. Totals: shared 55, backend unit 93, e2e 74, frontend 98.
+- [x] 7. Wrap-up: `npm run format`, plans updated (this file + PLAN_SUMMARY.md), conversation saved in
+      `docs/claude-conversations/7-slack_*`, review by the developer, commit by the developer (on `milestone-7-slack`).
+  - **Lessons:** decisions changed during the milestone (3 Slack channels → 1, editing added after step 3) were
+    cheap because the contract came first; re-check older tests when a new kind of thing arrives (some tests only
+    knew the email channel, one even wrote a second email channel into the database); secrets (the webhook URL)
+    need a test that they never reach responses, errors or logs (it found the response body being copied into
+    the error).
+
 ---
 
 ## Open questions (ours, decided during the scope)
 
-- **Slack:** incoming webhook or Slack app (OAuth)? Decide in milestone 7 after research. With the time pressure,
-  the simpler option is preferred.
+- **Slack:** decided in milestone 7: incoming webhook (the user pastes the URL); OAuth "Add to Slack" later.
 - **Polling vs. quota:** decided in milestone 5: every 2 hours, 10 requests per poll = 120/day (see
   [Milestone 5 steps](#milestone-5-steps-first-real-alerts)).
 - **Verify before launch:** NewsData.io and Resend free-tier terms on their official pricing pages.
@@ -1242,6 +1391,9 @@ Moved out of the current scope on 2026-10-20. Revisit after milestones 4, 5 and 
 - Other alert types from the brief (market movements, natural disasters), e.g. Finnhub/Alpha Vantage for markets,
   USGS/GDACS/NASA EONET for disasters, as additional `NewsSourceAdapter`s.
 - Playwright end-to-end tests. Category mapping editor for admins.
+- Channels: deleting a channel (409 while any rule uses it, even with other channels; never the email channel),
+  "Add to Slack" with OAuth (also gives a webhook URL), encrypting webhook URLs in
+  the database (before production). _(M7)_
 - Email: React Email templates instead of plain HTML (M4 used plain HTML because of the time). Extra email addresses
   with a confirmation link. Rename and delete channels.
 - Sending to any user needs a verified Resend domain (M4 is development only, see manager question 4).
@@ -1278,27 +1430,32 @@ default we use until there is an answer. It includes every point where the devel
    use, and is a paid plan possible?
    - Default: free tier, sending from a verified domain if there is one. _(M4)_
 
+5. **Is pasting a Slack webhook URL OK for users**, or do they expect a one-click "Add to Slack" button (our own
+   Slack app with OAuth, more work)?
+   - Default: the user creates a webhook in Slack and pastes its URL. _(M7)_
+
 **Alert rules**
 
-5. **Should keyword rules match all keywords (AND) or any of them (OR)?** Or should users choose? And should a
+6. **Should keyword rules match all keywords (AND) or any of them (OR)?** Or should users choose? And should a
    keyword also match other forms (`car` → "cars")? With AND only, a user can't say "car or cars".
    - Default: all keywords (AND), exact whole words (no plurals). _(M3: "later we can add OR if production
      decides"; M5: exact form, because `new` would match "news")_
-6. **Should one rule combine keywords and a category** (or several categories)?
+7. **Should one rule combine keywords and a category** (or several categories)?
    - Default: a rule uses keywords **or** one category. _(Planning: categories + keywords; M3: "we can update the
      implementation")_
-7. **Are hourly/daily digests needed for the first release?**
+8. **Are hourly/daily digests needed for the first release?**
    - Default: every alert is sent instantly (digests are in the TODO list). _(Planning: "a setting to choose the
      interval"; scope cut)_
 
 **Users and admin**
 
-8. **Is email and password enough to log in?** Or are Google login, SSO or 2FA needed?
+9. **Is email and password enough to log in?** Or are Google login, SSO or 2FA needed?
    - Default: email and password. _(Planning: "we can add anything if needed")_
-9. **Do admins need filters (role, status) and sorting in the user list?**
-   - Default: search by username/email and pagination only. _(M2: "we can add later if it's asked")_
+10. **Do admins need filters (role, status) and sorting in the user list?**
+
+- Default: search by username/email and pagination only. _(M2: "we can add later if it's asked")_
 
 **Project**
 
-10. **If the app is approved, will more developers join?** Then we split the monorepo into one repo per app.
+11. **If the app is approved, will more developers join?** Then we split the monorepo into one repo per app.
     - Default: one monorepo. _(Planning: "if this app is approved, we can change later")_
