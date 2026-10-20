@@ -1,4 +1,4 @@
-import type { AdminUser, AdminUserList, AlertRule, AuthUser } from '@alert-app/shared';
+import type { AdminUser, AdminUserList, AlertRule, AuthUser, Channel } from '@alert-app/shared';
 import type { Session } from '../global/utils/authApi';
 
 /** Test data for a logged-in user. Override fields as needed. */
@@ -56,8 +56,14 @@ export function testAlertRule(changes: Partial<AlertRule> = {}): AlertRule {
     keywords: ['electric car', 'Tesla'],
     category: null,
     enabled: true,
+    channelIds: ['channel-1'],
     createdAt: '2026-10-20T09:00:00.000Z',
     updatedAt: '2026-10-20T09:00:00.000Z',
     ...changes,
   };
+}
+
+/** A channel as GET /api/channels returns it. Defaults to the email channel of testUser(). */
+export function testChannel(changes: Partial<Channel> = {}): Channel {
+  return { id: 'channel-1', type: 'email', destination: 'test@example.com', ...changes };
 }

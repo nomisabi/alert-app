@@ -14,6 +14,7 @@ export type CreateAlertRuleRequest =
        */
       name: string;
       enabled?: boolean;
+      channelIds: string[];
       type: 'keywords';
       keywords: string[];
     }
@@ -24,6 +25,7 @@ export type CreateAlertRuleRequest =
        */
       name: string;
       enabled?: boolean;
+      channelIds: string[];
       type: 'category';
       category:
         | 'world'

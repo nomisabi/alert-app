@@ -45,6 +45,7 @@ model User {
   sessions        Session[]
   accounts        Account[]
   alertRules      AlertRule[]
+  channels        Channel[]
 
   @@map("user")
 }
@@ -116,22 +117,68 @@ enum AlertRuleType {
 }
 
 model AlertRule {
-  id        String        @id @default(uuid(7))
+  id        String             @id @default(uuid(7))
   userId    String
-  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   name      String
   type      AlertRuleType
   // 1–10 keywords as the user typed them (trimmed). ALL of them must appear in the article
   // (AND). Matching ignores case, so no lowercase copy is stored.
-  keywords  String[]      @default([])
+  keywords  String[]           @default([])
   // One of APP_CATEGORIES (packages/shared). Plain text, checked by the shared Zod schema,
   // so changing the category list needs no migration.
   category  String?
   // Switched-off rules are kept but never matched.
-  enabled   Boolean       @default(true)
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
+  enabled   Boolean            @default(true)
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+  // Where matches are sent. At least one (checked by the shared Zod schema and the service).
+  channels  AlertRuleChannel[]
 
   @@index([userId])
   @@map("alert_rule")
+}
+
+// ---------------------------------------------------------------------------
+// Channels (milestone 4)
+// ---------------------------------------------------------------------------
+
+// Adding a type (slack in milestone 7) is a one-line migration.
+enum ChannelType {
+  email
+}
+
+// Where a user's alerts are sent. Every user has exactly one email channel (their account
+// email), created after sign-up. "Only one email channel" is checked in the service.
+model Channel {
+  id             String             @id @default(uuid(7))
+  userId         String
+  user           User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type           ChannelType
+  // Settings that depend on the type, checked by the type's Zod schema. Email: {} (the address
+  // is read from user.email when sending, so it is never out of date). Slack later: { webhookUrl }.
+  config         Json               @default("{}")
+  // For the "1 test message per minute" limit. Stored here, so it survives a restart.
+  lastTestSentAt DateTime?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  alertRules     AlertRuleChannel[]
+
+  @@index([userId])
+  @@map("channel")
+}
+
+// Join table: which rule sends to which channel (many-to-many). One row per pair, so the same
+// pair can't be saved twice. Deleting a rule, a channel or a user removes its rows.
+model AlertRuleChannel {
+  alertRuleId String
+  alertRule   AlertRule @relation(fields: [alertRuleId], references: [id], onDelete: Cascade)
+  channelId   String
+  channel     Channel   @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  // The primary key starts with alertRuleId, so it also serves "channels of a rule".
+  // The extra index serves "rules of a channel".
+  @@id([alertRuleId, channelId])
+  @@index([channelId])
+  @@map("alert_rule_channel")
 }

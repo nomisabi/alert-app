@@ -2,9 +2,9 @@ import { HttpStatus, Logger, NotFoundException, type ArgumentsHost } from '@nest
 import { ApiExceptionFilter } from './api-exception.filter.js';
 import { ApiException } from './api.exception.js';
 
-/** Runs the filter like Nest does and returns the status and body it sent. */
+/** Runs the filter like Nest does and returns the status, body and extra headers it sent. */
 function runFilter(exception: unknown, headers: Record<string, string> = {}) {
-  const response = { status: vi.fn(), json: vi.fn() };
+  const response = { status: vi.fn(), json: vi.fn(), set: vi.fn() };
   response.status.mockReturnValue(response);
 
   const host = {
@@ -18,7 +18,8 @@ function runFilter(exception: unknown, headers: Record<string, string> = {}) {
 
   const [[status]] = response.status.mock.calls as [[number]];
   const [[body]] = response.json.mock.calls as [[unknown]];
-  return { status, body };
+  const sentHeaders = (response.set.mock.calls as [[Record<string, string>]][])[0]?.[0];
+  return { status, body, ...(sentHeaders && { headers: sentHeaders }) };
 }
 
 describe('ApiExceptionFilter', () => {
@@ -69,6 +70,22 @@ describe('ApiExceptionFilter', () => {
         code: 'INTERNAL_SERVER_ERROR',
         message: 'Something went wrong. Please try again later.',
       },
+    });
+  });
+
+  it('fills in values and sets extra headers', () => {
+    const exception = new ApiException(HttpStatus.TOO_MANY_REQUESTS, 'CHANNEL_TEST_TOO_SOON', [], {
+      values: { seconds: 42 },
+      headers: { 'Retry-After': '42' },
+    });
+
+    expect(runFilter(exception)).toEqual({
+      status: 429,
+      body: {
+        code: 'CHANNEL_TEST_TOO_SOON',
+        message: 'You can send one test message per minute. Please try again in 42 seconds.',
+      },
+      headers: { 'Retry-After': '42' },
     });
   });
 

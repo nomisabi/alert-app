@@ -47,6 +47,18 @@ export function createAuth({ prisma, secret, baseURL, trustedOrigins }: CreateAu
     ],
     // Login is by email only
     disabledPaths: ['/sign-in/username'],
+    databaseHooks: {
+      user: {
+        create: {
+          // A hook is a function Better Auth calls at a certain moment: here right after a new
+          // user row is saved (sign-up and the seed script). Every user gets their email channel.
+          // Users who existed before milestone 4 got theirs from the `channels` migration.
+          after: async (user) => {
+            await prisma.channel.create({ data: { userId: user.id, type: 'email' } });
+          },
+        },
+      },
+    },
     telemetry: { enabled: false },
     advanced: {
       // Better Auth turns its origin check (CSRF protection) off when NODE_ENV=test.

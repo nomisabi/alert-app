@@ -1,4 +1,9 @@
-import { alertRuleFormSchema, type AlertRule, type AlertRuleFormValues } from '@alert-app/shared';
+import {
+  alertRuleFormSchema,
+  type AlertRule,
+  type AlertRuleFormValues,
+  type Channel,
+} from '@alert-app/shared';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
   Alert,
@@ -22,15 +27,17 @@ import { FormTextField } from '../../global/components/FormTextField/FormTextFie
 import { setServerErrors } from '../../global/utils/setServerErrors';
 import type { AlertRuleDialogProps } from '../../types/alert-rules/alertRules';
 import styles from './AlertRulesPage.module.scss';
+import { ChannelsField } from './ChannelsField';
 import { KeywordsField } from './KeywordsField';
 
-/** The form starts from the rule being edited, or empty for a new one. */
-function toFormValues(rule: AlertRule | null): AlertRuleFormValues {
+/** The form starts from the rule being edited, or empty for a new one (sending to every channel). */
+function toFormValues(rule: AlertRule | null, channels: Channel[]): AlertRuleFormValues {
   return {
     name: rule?.name ?? '',
     type: rule?.type ?? 'keywords',
     keywords: rule?.keywords ?? [],
     category: rule?.category ?? '',
+    channelIds: rule?.channelIds ?? channels.map((channel) => channel.id),
   };
 }
 
@@ -39,6 +46,7 @@ export function AlertRuleDialog({
   open,
   rule,
   categories,
+  channels,
   onSubmit,
   onClose,
 }: AlertRuleDialogProps) {
@@ -48,7 +56,7 @@ export function AlertRuleDialog({
   const form = useForm({
     resolver: zodResolver(alertRuleFormSchema),
     mode: 'onTouched',
-    defaultValues: toFormValues(rule),
+    defaultValues: toFormValues(rule, channels),
   });
   const {
     control,
@@ -60,8 +68,8 @@ export function AlertRuleDialog({
 
   // Start fresh every time the dialog opens
   useEffect(() => {
-    if (open) reset(toFormValues(rule));
-  }, [open, rule, reset]);
+    if (open) reset(toFormValues(rule, channels));
+  }, [open, rule, channels, reset]);
 
   const close = () => {
     if (!isSubmitting) onClose();
@@ -141,6 +149,8 @@ export function AlertRuleDialog({
               ))}
             </FormTextField>
           )}
+
+          <ChannelsField control={control} channels={channels} />
 
           {errors.root?.server && <Alert severity="error">{errors.root.server.message}</Alert>}
         </DialogContent>

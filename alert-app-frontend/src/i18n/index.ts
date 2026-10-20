@@ -4,13 +4,14 @@ import { initReactI18next } from 'react-i18next';
 import admin from './locales/en/admin.json';
 import alerts from './locales/en/alerts.json';
 import auth from './locales/en/auth.json';
+import channels from './locales/en/channels.json';
 import common from './locales/en/common.json';
 
 export const defaultNS = 'common';
 
 export const resources = {
   // Validation texts come from the shared package, because the backend uses them too
-  en: { common, auth, admin, alerts, validation: validationMessagesEn },
+  en: { common, auth, admin, alerts, channels, validation: validationMessagesEn },
 } as const;
 
 void i18n.use(initReactI18next).init({

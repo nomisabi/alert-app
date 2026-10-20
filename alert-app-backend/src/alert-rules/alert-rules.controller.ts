@@ -63,7 +63,9 @@ export class AlertRulesController {
   @ApiOperation({ operationId: 'createAlertRule', summary: 'Create an alert rule' })
   @ApiBody({ schema: schemaRef('CreateAlertRuleRequest') })
   @ApiCreatedResponse({ schema: schemaRef('AlertRule'), description: 'The new rule' })
-  @ApiBadRequestResponse({ description: 'VALIDATION_FAILED or ALERT_RULE_LIMIT_REACHED' })
+  @ApiBadRequestResponse({
+    description: 'VALIDATION_FAILED, ALERT_RULE_LIMIT_REACHED or INVALID_CHANNEL',
+  })
   create(@Req() request: AuthenticatedRequest, @Body() body: unknown): Promise<AlertRule> {
     return this.alertRules.create(request.user.id, parseBody(createAlertRuleRequestSchema, body));
   }
@@ -75,7 +77,7 @@ export class AlertRulesController {
   })
   @ApiBody({ schema: schemaRef('UpdateAlertRuleRequest') })
   @ApiOkResponse({ schema: schemaRef('AlertRule'), description: 'The rule after the change' })
-  @ApiBadRequestResponse({ description: 'VALIDATION_FAILED' })
+  @ApiBadRequestResponse({ description: 'VALIDATION_FAILED or INVALID_CHANNEL' })
   @ApiNotFoundResponse(notFound)
   update(
     @Req() request: AuthenticatedRequest,

@@ -9,6 +9,7 @@
     "columns": {
       "name": "Name",
       "findsBy": "Finds news by",
+      "channels": "Sends to",
       "enabled": "On",
       "actions": "Actions"
     },
@@ -41,6 +42,9 @@
     "keywordsHelpText": "Type a word or a phrase, e.g. “electric car”, and press Enter to add it. Remove one with its ✕ or with Backspace. Only articles that contain all keywords (in the title or the description) are sent to you.",
     "category": "Category",
     "categoryHint": "You get every article in this category.",
+    "channels": "Send to",
+    "channelOption": "{{type}} ({{destination}})",
+    "channelsHint": "Where the news for this alert is sent.",
     "create": "Create alert",
     "save": "Save"
   },

@@ -22,6 +22,13 @@ export const errorsEn = {
   CANNOT_DISABLE_SELF: "You can't disable your own account.",
   ALERT_RULE_NOT_FOUND: 'This alert does not exist.',
   ALERT_RULE_LIMIT_REACHED: `You can have at most ${ALERT_RULES_PER_USER_MAX} alerts. Delete one to add another.`,
+  CHANNEL_NOT_FOUND: 'This channel does not exist.',
+  // {{seconds}}: filled in by ChannelsService
+  CHANNEL_TEST_TOO_SOON:
+    'You can send one test message per minute. Please try again in {{seconds}} seconds.',
+  CHANNEL_TEST_FAILED: "We couldn't send the test message. Please try again later.",
+  // Also the field error under "Send to" (a channel that doesn't exist or isn't the user's)
+  INVALID_CHANNEL: 'Choose one of your channels.',
 
   // Better Auth
   INVALID_EMAIL_OR_PASSWORD: 'Invalid email or password.',

@@ -2,6 +2,7 @@ import type { AlertRule } from '@alert-app/shared';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlined';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import { Chip, IconButton, Switch, Tooltip } from '@mui/material';
+import { ChannelIcon } from '../../global/components/ChannelIcon/ChannelIcon';
 import type { DataTableColumn } from '../../global/components/DataTable/DataTable';
 import styles from '../../pages/AlertRules/AlertRulesPage.module.scss';
 import type { AlertRuleColumnsOptions } from '../../types/alert-rules/alertRules';
@@ -12,6 +13,7 @@ import type { AlertRuleColumnsOptions } from '../../types/alert-rules/alertRules
  */
 export function getAlertRuleColumns({
   t,
+  channels,
   pendingRuleId,
   onToggle,
   onEdit,
@@ -49,6 +51,33 @@ export function getAlertRuleColumns({
               )}
             </>
           )}
+        </span>
+      ),
+    },
+    {
+      key: 'channels',
+      header: t('list.columns.channels'),
+      render: (rule) => (
+        <span className={styles.channels}>
+          {/* In the order of the channel list. Ids without a loaded channel are skipped. */}
+          {channels
+            .filter((channel) => rule.channelIds.includes(channel.id))
+            .map((channel) => (
+              // Tooltip also sets the text as the icon's aria-label, so screen readers read it.
+              // enterTouchDelay 0: a tap shows it on touch screens.
+              <Tooltip
+                key={channel.id}
+                title={t('dialog.channelOption', {
+                  type: t(`channels:types.${channel.type}`),
+                  destination: channel.destination,
+                })}
+                enterTouchDelay={0}
+              >
+                <span role="img" className={styles.channelIcon}>
+                  <ChannelIcon type={channel.type} fontSize="small" />
+                </span>
+              </Tooltip>
+            ))}
         </span>
       ),
     },

@@ -15,6 +15,7 @@ export interface UpdateAlertRuleRequest {
    */
   name?: string;
   enabled?: boolean;
+  channelIds?: string[];
   type?: UpdateAlertRuleRequestType;
   keywords?: string[];
   category?: UpdateAlertRuleRequestCategory;

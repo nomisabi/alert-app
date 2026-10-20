@@ -12,6 +12,7 @@ import {
   USERNAME_MAX_LENGTH,
   USERNAME_MIN_LENGTH,
 } from '../constants/auth.js';
+import { CHANNELS_PER_RULE_MAX } from '../constants/channels.js';
 
 /**
  * Texts for the Zod error keys in this package (the `validation` i18n namespace).
@@ -67,6 +68,11 @@ export const validationMessagesEn = {
   category: {
     required: 'Choose a category.',
   },
+  channelIds: {
+    required: 'Choose at least one channel.',
+    tooMany: 'Choose at most {{channelsPerRuleMax}} channels.',
+    duplicate: 'Each channel can be chosen only once.',
+  },
 } as const;
 
 /** Values the validation texts can use, e.g. "Use at least {{usernameMin}} characters." */
@@ -81,4 +87,5 @@ export const VALIDATION_VALUES = {
   keywordsMax: KEYWORDS_MAX,
   keywordMin: KEYWORD_MIN_LENGTH,
   keywordMax: KEYWORD_MAX_LENGTH,
+  channelsPerRuleMax: CHANNELS_PER_RULE_MAX,
 };

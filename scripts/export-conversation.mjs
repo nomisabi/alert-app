@@ -76,13 +76,17 @@ const redactions = [
   .sort((a, b) => b[0].length - a[0].length);
 
 function redact(text) {
-  return redactions
-    .reduce(
-      (out, [value, replacement]) =>
-        out.replace(new RegExp(escapeRegExp(value), 'gi'), replacement),
-      text,
-    )
-    .replace(/(\bUsers(?:\\+|\/+))(?!<user>)[^\\/\s"'`<>]+/gi, '$1<user>');
+  return (
+    redactions
+      .reduce(
+        (out, [value, replacement]) =>
+          out.replace(new RegExp(escapeRegExp(value), 'gi'), replacement),
+        text,
+      )
+      .replace(/(\bUsers(?:\\+|\/+))(?!<user>)[^\\/\s"'`<>]+/gi, '$1<user>')
+      // Windows short (8.3) form of the username in temp paths, e.g. "JOHN-S~1"
+      .replace(new RegExp(`${escapeRegExp(username.slice(0, 6))}~\\d+`, 'gi'), '<user>')
+  );
 }
 
 // ---------- rendering ----------

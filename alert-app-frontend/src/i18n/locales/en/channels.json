@@ -1,0 +1,18 @@
+{
+  "title": "Channels",
+  "description": "Where your alerts are sent. Choose the channels for each alert when you create or edit it.",
+  "listLabel": "Your channels",
+  "loadError": "Your channels could not be loaded.",
+  "retry": "Try again",
+  "types": {
+    "email": "Email"
+  },
+  "hints": {
+    "email": "Your account email. Alerts are sent here."
+  },
+  "sendTest": "Send test message",
+  "sendTestFor": "Send a test message to {{type}} {{destination}}",
+  "notify": {
+    "testSent": "Test message sent to {{destination}}."
+  }
+}

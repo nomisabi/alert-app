@@ -127,6 +127,7 @@ describe('validation texts', () => {
       'keywords',
       'keyword',
       'category',
+      'channelIds',
     ];
     const textKeys = Object.entries(validationMessagesEn)
       .filter(([group]) => !otherGroups.includes(group))

@@ -34,6 +34,7 @@ describe('AppLayout', () => {
     await user.click(await screen.findByRole('button', { name: 'Account menu for Test User' }));
 
     expect(screen.getByText('@Test.User')).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: 'Channels' })).toHaveAttribute('href', '/channels');
     expect(screen.getByRole('menuitem', { name: 'Log out' })).toBeInTheDocument();
     expect(screen.queryByRole('menuitem', { name: 'Admin' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Log in' })).not.toBeInTheDocument();

@@ -6,13 +6,14 @@ import {
 import AddIcon from '@mui/icons-material/Add';
 import NotificationsNoneIcon from '@mui/icons-material/NotificationsNone';
 import { Alert, Button } from '@mui/material';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAlertRules } from '../../api/alert-rules/useAlertRules';
 import { useCreateAlertRule } from '../../api/alert-rules/useCreateAlertRule';
 import { useDeleteAlertRule } from '../../api/alert-rules/useDeleteAlertRule';
 import { useUpdateAlertRule } from '../../api/alert-rules/useUpdateAlertRule';
 import { useCategories } from '../../api/categories/useCategories';
+import { useChannels } from '../../api/channels/useChannels';
 import { ConfirmDialog } from '../../global/components/ConfirmDialog/ConfirmDialog';
 import { DataTable } from '../../global/components/DataTable/DataTable';
 import { EmptyState } from '../../global/components/EmptyState/EmptyState';
@@ -23,11 +24,12 @@ import { AlertRuleDialog } from './AlertRuleDialog';
 import styles from './AlertRulesPage.module.scss';
 
 export function AlertRulesPage() {
-  const { t } = useTranslation(['alerts', 'common']);
+  const { t } = useTranslation(['alerts', 'common', 'channels']);
   const notify = useNotify();
 
   const alertRules = useAlertRules();
   const categories = useCategories();
+  const channels = useChannels();
   const createRule = useCreateAlertRule();
   const updateRule = useUpdateAlertRule();
   const deleteRule = useDeleteAlertRule();
@@ -38,8 +40,12 @@ export function AlertRulesPage() {
   const [ruleToDelete, setRuleToDelete] = useState<AlertRule | null>(null);
 
   const rules = alertRules.data?.items ?? [];
+  // useMemo: the same array on every render, so the dialog doesn't reset its form each time
+  const channelList = useMemo(() => channels.data?.items ?? [], [channels.data]);
+  // The list shows the channels and the dialog needs them, so both must be loaded
+  const isLoaded = alertRules.isSuccess && channels.isSuccess;
   // Only once the list has loaded: "empty" while loading would flash the empty state
-  const isEmpty = alertRules.isSuccess && rules.length === 0;
+  const isEmpty = isLoaded && rules.length === 0;
   const limitReached = rules.length >= ALERT_RULES_PER_USER_MAX;
 
   const openDialog = (rule: AlertRule | null) => {
@@ -77,6 +83,7 @@ export function AlertRulesPage() {
 
   const columns = getAlertRuleColumns({
     t,
+    channels: channelList,
     pendingRuleId: updateRule.isPending ? updateRule.variables.rule.id : undefined,
     onToggle: toggle,
     onEdit: openDialog,
@@ -89,7 +96,7 @@ export function AlertRulesPage() {
       description={t('list.description')}
       actions={
         // The empty state has its own button
-        alertRules.isSuccess &&
+        isLoaded &&
         !isEmpty && (
           <Button
             variant="contained"
@@ -125,9 +132,12 @@ export function AlertRulesPage() {
           columns={columns}
           rows={rules}
           getRowKey={(rule) => rule.id}
-          isLoading={alertRules.isPending}
-          errorMessage={alertRules.isError ? t('list.loadError') : undefined}
-          onRetry={() => void alertRules.refetch()}
+          isLoading={alertRules.isPending || channels.isPending}
+          errorMessage={alertRules.isError || channels.isError ? t('list.loadError') : undefined}
+          onRetry={() => {
+            if (alertRules.isError) void alertRules.refetch();
+            if (channels.isError) void channels.refetch();
+          }}
           emptyText={t('list.empty.title')}
         />
       )}
@@ -136,6 +146,7 @@ export function AlertRulesPage() {
         open={dialogOpen}
         rule={editedRule}
         categories={categories.data ?? []}
+        channels={channelList}
         onSubmit={save}
         onClose={() => setDialogOpen(false)}
       />

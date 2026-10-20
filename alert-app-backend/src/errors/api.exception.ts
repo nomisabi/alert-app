@@ -7,6 +7,13 @@ export interface FieldErrorKey {
   key: string;
 }
 
+export interface ApiExceptionExtras {
+  /** Values for the message text, e.g. { seconds: 42 } for "try again in {{seconds}} seconds". */
+  values?: Record<string, string | number>;
+  /** Extra response headers, e.g. { 'Retry-After': '42' }. */
+  headers?: Record<string, string>;
+}
+
 /**
  * Throw this for every expected error. The ApiExceptionFilter turns it into the
  * `ApiError` response body (`{ code, message, fieldErrors }`) with translated texts.
@@ -18,6 +25,7 @@ export class ApiException extends HttpException {
     status: HttpStatus,
     readonly code: string,
     readonly fieldErrors: FieldErrorKey[] = [],
+    readonly extras: ApiExceptionExtras = {},
   ) {
     super(code, status);
   }

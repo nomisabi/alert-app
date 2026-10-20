@@ -3,6 +3,7 @@ import { AppLayout } from '../global/components/AppLayout/AppLayout';
 import { AlertRulesPage } from '../pages/AlertRules/AlertRulesPage';
 import { ProtectedRoute } from '../global/components/ProtectedRoute/ProtectedRoute';
 import { AdminUsersPage } from '../pages/admin/Users/AdminUsersPage';
+import { ChannelsPage } from '../pages/Channels/ChannelsPage';
 import { ErrorPage } from '../pages/Error/ErrorPage';
 import { HomePage } from '../pages/Home/HomePage';
 import { LoginPage } from '../pages/Login/LoginPage';
@@ -26,7 +27,10 @@ export const routes: RouteObject[] = [
           { path: 'signup', element: <SignUpPage /> },
           {
             element: <ProtectedRoute />,
-            children: [{ path: 'alerts', element: <AlertRulesPage /> }],
+            children: [
+              { path: 'alerts', element: <AlertRulesPage /> },
+              { path: 'channels', element: <ChannelsPage /> },
+            ],
           },
           {
             element: <ProtectedRoute requireAdmin />,

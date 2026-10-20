@@ -9,6 +9,15 @@ export const envSchema = z.object({
   DATABASE_URL: z.url(),
   BETTER_AUTH_SECRET: z.string().min(32),
   BETTER_AUTH_URL: z.url(),
+  // Email (milestone 4). Without a key, emails are only written to the log (LogEmailProvider).
+  // An empty value in .env counts as "not set".
+  RESEND_API_KEY: z
+    .string()
+    .trim()
+    .optional()
+    .transform((key) => key || undefined),
+  // Without a verified domain, Resend's test sender only delivers to the Resend account's own email
+  EMAIL_FROM: z.string().min(1).default('Alert App <onboarding@resend.dev>'),
 });
 
 export type Env = z.infer<typeof envSchema>;

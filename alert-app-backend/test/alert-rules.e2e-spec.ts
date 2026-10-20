@@ -3,6 +3,7 @@ import {
   APP_CATEGORIES,
   type AlertRule,
   type AlertRuleList,
+  type ChannelList,
 } from '@alert-app/shared';
 import { INestApplication } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -15,7 +16,7 @@ import { PrismaService } from '../src/prisma/prisma.service.js';
 import { setupApp } from '../src/setup-app.js';
 
 // End-to-end test of the alert rules and categories endpoints: real app, real database
-// (npm run db:up first). Every user of this run is deleted at the end, with their rules.
+// (npm run db:up first). Every user of this run is deleted at the end, with their rules and channels.
 describe('Alert rules (e2e)', () => {
   let app: INestApplication<App>;
   let prisma: PrismaService;
@@ -62,8 +63,20 @@ describe('Alert rules (e2e)', () => {
     return agent;
   }
 
+  /** The id of the user's email channel (created at sign-up). */
+  async function emailChannelId(agent: request.Agent) {
+    return ((await agent.get('/api/channels').expect(200)).body as ChannelList).items[0].id;
+  }
+
+  /** Creates a rule that sends to the user's email channel (unless the body has channelIds). */
   async function createRule(agent: request.Agent, body: object = keywordRule) {
-    return (await agent.post('/api/alert-rules').send(body).expect(201)).body as AlertRule;
+    const channelIds = [await emailChannelId(agent)];
+    return (
+      await agent
+        .post('/api/alert-rules')
+        .send({ channelIds, ...body })
+        .expect(201)
+    ).body as AlertRule;
   }
 
   it('needs a login for every endpoint', async () => {
@@ -86,10 +99,12 @@ describe('Alert rules (e2e)', () => {
   describe('POST /api/alert-rules', () => {
     it('creates a keyword rule: trimmed, switched on, the other field dropped', async () => {
       const user = await signUp('create');
+      const channelId = await emailChannelId(user);
       const response = await user
         .post('/api/alert-rules')
         .send({
           ...keywordRule,
+          channelIds: [channelId],
           name: '  EV news ',
           keywords: [' electric car ', 'Tesla'],
           category: 'world',
@@ -104,6 +119,7 @@ describe('Alert rules (e2e)', () => {
         keywords: ['electric car', 'Tesla'],
         category: null,
         enabled: true,
+        channelIds: [channelId],
         createdAt: expect.any(String) as string,
         updatedAt: expect.any(String) as string,
       });
@@ -129,8 +145,14 @@ describe('Alert rules (e2e)', () => {
 
     it('rejects invalid rules with translated field errors', async () => {
       const user = await signUp('invalid');
+      const channelIds = [await emailChannelId(user)];
       const errors = async (body: object) =>
-        (await user.post('/api/alert-rules').send(body).expect(400)).body as unknown;
+        (
+          await user
+            .post('/api/alert-rules')
+            .send({ channelIds, ...body })
+            .expect(400)
+        ).body as unknown;
 
       expect(await errors({ name: 'x' })).toEqual({
         code: 'VALIDATION_FAILED',
@@ -163,7 +185,11 @@ describe('Alert rules (e2e)', () => {
       });
 
       await createRule(user, categoryRule); // the 20th
-      const response = await user.post('/api/alert-rules').send(categoryRule).expect(400);
+      const channelIds = [await emailChannelId(user)];
+      const response = await user
+        .post('/api/alert-rules')
+        .send({ ...categoryRule, channelIds })
+        .expect(400);
       expect(response.body).toEqual({
         code: 'ALERT_RULE_LIMIT_REACHED',
         message: `You can have at most ${ALERT_RULES_PER_USER_MAX} alerts. Delete one to add another.`,
@@ -262,6 +288,85 @@ describe('Alert rules (e2e)', () => {
       expect(response.text).toBe('');
       await user.delete(`/api/alert-rules/${rule.id}`).expect(404);
       await user.get(`/api/alert-rules/${rule.id}`).expect(404);
+    });
+  });
+
+  describe('channels of a rule', () => {
+    const invalidChannel = {
+      code: 'INVALID_CHANNEL',
+      message: 'Choose one of your channels.',
+      fieldErrors: [{ field: 'channelIds', message: 'Choose one of your channels.' }],
+    };
+
+    it('needs at least one channel, each only once', async () => {
+      const user = await signUp('nochannel');
+      const channelId = await emailChannelId(user);
+      const fieldErrors = async (body: object) =>
+        ((await user.post('/api/alert-rules').send(body).expect(400)).body as { fieldErrors: [] })
+          .fieldErrors;
+
+      expect(await fieldErrors(categoryRule)).toEqual([
+        { field: 'channelIds', message: 'Choose at least one channel.' },
+      ]);
+      expect(await fieldErrors({ ...categoryRule, channelIds: [] })).toEqual([
+        { field: 'channelIds', message: 'Choose at least one channel.' },
+      ]);
+      expect(await fieldErrors({ ...categoryRule, channelIds: [channelId, channelId] })).toEqual([
+        { field: 'channelIds', message: 'Each channel can be chosen only once.' },
+      ]);
+    });
+
+    it("rejects another user's channel or an unknown id, and saves nothing", async () => {
+      const user = await signUp('fch');
+      const other = await signUp('fchowner');
+      const otherChannelId = await emailChannelId(other);
+
+      for (const channelIds of [[otherChannelId], ['not-a-uuid']]) {
+        await user
+          .post('/api/alert-rules')
+          .send({ ...categoryRule, channelIds })
+          .expect(400, invalidChannel);
+      }
+      expect(await prisma.alertRule.count({ where: { user: { email: emailFor('fch') } } })).toBe(0);
+
+      // The same check when changing a rule; the rule keeps its channels
+      const rule = await createRule(user);
+      await user
+        .patch(`/api/alert-rules/${rule.id}`)
+        .send({ channelIds: [otherChannelId] })
+        .expect(400, invalidChannel);
+      await user.get(`/api/alert-rules/${rule.id}`).expect(200, rule);
+    });
+
+    it('replaces the channel list when channelIds is sent, and keeps it otherwise', async () => {
+      const user = await signUp('channellist');
+      const firstId = await emailChannelId(user);
+      // A second channel, so there is something to switch to (Slack comes in milestone 7)
+      const { id: userId } = await prisma.user.findUniqueOrThrow({
+        where: { email: emailFor('channellist') },
+      });
+      const { id: secondId } = await prisma.channel.create({ data: { userId, type: 'email' } });
+      const rule = await createRule(user);
+      expect(rule.channelIds).toEqual([firstId]);
+
+      const replaced = await user
+        .patch(`/api/alert-rules/${rule.id}`)
+        .send({ channelIds: [secondId] })
+        .expect(200);
+      expect((replaced.body as AlertRule).channelIds).toEqual([secondId]);
+
+      const toggled = await user
+        .patch(`/api/alert-rules/${rule.id}`)
+        .send({ enabled: false })
+        .expect(200);
+      expect((toggled.body as AlertRule).channelIds).toEqual([secondId]);
+
+      // Returned in the order of the channel list (oldest first), not the order they were sent
+      const both = await user
+        .patch(`/api/alert-rules/${rule.id}`)
+        .send({ channelIds: [secondId, firstId] })
+        .expect(200);
+      expect((both.body as AlertRule).channelIds).toEqual([firstId, secondId]);
     });
   });
 

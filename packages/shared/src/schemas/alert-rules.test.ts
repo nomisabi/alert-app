@@ -5,6 +5,7 @@ import {
   KEYWORD_MAX_LENGTH,
   KEYWORDS_MAX,
 } from '../constants/alert-rules.js';
+import { CHANNELS_PER_RULE_MAX } from '../constants/channels.js';
 import { validationMessagesEn } from '../i18n/validation.en.js';
 import {
   alertRuleFormSchema,
@@ -12,8 +13,14 @@ import {
   updateAlertRuleRequestSchema,
 } from './alert-rules.js';
 
-const keywordRule = { type: 'keywords', name: 'EV news', keywords: ['electric car', 'Tesla'] };
-const categoryRule = { type: 'category', name: 'Sports', category: 'sports' };
+const channelIds = ['channel-1'];
+const keywordRule = {
+  type: 'keywords',
+  name: 'EV news',
+  keywords: ['electric car', 'Tesla'],
+  channelIds,
+};
+const categoryRule = { type: 'category', name: 'Sports', category: 'sports', channelIds };
 
 /** Every key the tests below produce. Checked against the texts at the end. */
 const producedKeys = new Set<string>();
@@ -43,7 +50,12 @@ describe('createAlertRuleRequestSchema', () => {
         keywords: [' electric car ', 'Tesla'],
         category: 'world',
       }),
-    ).toEqual({ type: 'keywords', name: 'EV news', keywords: ['electric car', 'Tesla'] });
+    ).toEqual({
+      type: 'keywords',
+      name: 'EV news',
+      keywords: ['electric car', 'Tesla'],
+      channelIds,
+    });
   });
 
   it('accepts a category rule and drops keywords', () => {
@@ -72,7 +84,7 @@ describe('createAlertRuleRequestSchema', () => {
     expect(
       createErrors({ ...categoryRule, name: 'a'.repeat(ALERT_RULE_NAME_MAX_LENGTH + 1) }),
     ).toEqual({ name: ['alertRuleName.tooLong'] });
-    expect(createErrors({ type: 'category', category: 'sports' })).toEqual({
+    expect(createErrors({ type: 'category', category: 'sports', channelIds })).toEqual({
       name: ['alertRuleName.required'],
     });
   });
@@ -100,11 +112,25 @@ describe('createAlertRuleRequestSchema', () => {
     );
   });
 
+  it('checks the channels', () => {
+    const channelErrors = (channelIds: unknown) => createErrors({ ...categoryRule, channelIds });
+
+    expect(channelErrors(undefined)).toEqual({ channelIds: ['channelIds.required'] });
+    expect(channelErrors([])).toEqual({ channelIds: ['channelIds.required'] });
+    expect(
+      channelErrors(Array.from({ length: CHANNELS_PER_RULE_MAX + 1 }, (_, i) => `channel-${i}`)),
+    ).toEqual({ channelIds: ['channelIds.tooMany'] });
+    expect(channelErrors(['a', 'a'])).toEqual({ channelIds: ['channelIds.duplicate'] });
+    expect(
+      channelErrors(Array.from({ length: CHANNELS_PER_RULE_MAX }, (_, i) => `channel-${i}`)),
+    ).toEqual({});
+  });
+
   it('only accepts our categories', () => {
     expect(createErrors({ ...categoryRule, category: 'top' })).toEqual({
       category: ['category.required'],
     });
-    expect(createErrors({ type: 'category', name: 'x' })).toEqual({
+    expect(createErrors({ type: 'category', name: 'x', channelIds })).toEqual({
       category: ['category.required'],
     });
     expect(createErrors({ ...categoryRule, category: 'other' })).toEqual({});
@@ -132,6 +158,11 @@ describe('updateAlertRuleRequestSchema', () => {
     expect(updateErrors({ category: 'health' })).toEqual({ type: ['alertRuleType.required'] });
   });
 
+  it('replaces the channels only when they are sent', () => {
+    expect(updateAlertRuleRequestSchema.parse({ channelIds })).toEqual({ channelIds });
+    expect(updateErrors({ channelIds: [] })).toEqual({ channelIds: ['channelIds.required'] });
+  });
+
   it('checks the fields like the create schema', () => {
     expect(updateErrors({ name: '' })).toEqual({ name: ['alertRuleName.required'] });
     expect(updateErrors({ type: 'keywords', keywords: ['a', 'b'] })).toEqual({
@@ -141,18 +172,20 @@ describe('updateAlertRuleRequestSchema', () => {
 });
 
 describe('alertRuleFormSchema', () => {
-  const form = { name: 'EV news', type: 'keywords', keywords: ['Tesla'], category: '' };
+  const form = { name: 'EV news', type: 'keywords', keywords: ['Tesla'], category: '', channelIds };
 
   it('returns the request body of the selected type only', () => {
     expect(alertRuleFormSchema.parse(form)).toEqual({
       name: 'EV news',
       type: 'keywords',
       keywords: ['Tesla'],
+      channelIds,
     });
     expect(alertRuleFormSchema.parse({ ...form, type: 'category', category: 'science' })).toEqual({
       name: 'EV news',
       type: 'category',
       category: 'science',
+      channelIds,
     });
   });
 
@@ -169,7 +202,14 @@ describe('alertRuleFormSchema', () => {
 
 describe('validation texts', () => {
   it('has exactly one text for every alert rule error key', () => {
-    const groups = ['alertRuleName', 'alertRuleType', 'keywords', 'keyword', 'category'] as const;
+    const groups = [
+      'alertRuleName',
+      'alertRuleType',
+      'keywords',
+      'keyword',
+      'category',
+      'channelIds',
+    ] as const;
     const textKeys = groups.flatMap((group) =>
       Object.keys(validationMessagesEn[group]).map((key) => `${group}.${key}`),
     );

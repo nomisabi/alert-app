@@ -8,7 +8,7 @@ import { useSignOut } from '../../../api/auth/useSignOut';
 import { useNotify } from '../../hooks/useNotify';
 import styles from './AppLayout.module.scss';
 
-/** AppBar button with the user's name. Opens a menu with the admin link and "Log out". */
+/** AppBar button with the user's name. Opens a menu with Channels, the admin link and "Log out". */
 export function AccountMenu({ user }: { user: AuthUser }) {
   const { t } = useTranslation('auth');
   const menuId = useId();
@@ -57,6 +57,9 @@ export function AccountMenu({ user }: { user: AuthUser }) {
           secondary={`@${user.displayUsername}`}
         />
         <Divider />
+        <MenuItem component={Link} to="/channels" onClick={close}>
+          {t('account.channels')}
+        </MenuItem>
         {user.role === 'admin' && (
           <MenuItem component={Link} to="/admin" onClick={close}>
             {t('account.admin')}

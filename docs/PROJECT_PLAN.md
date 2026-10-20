@@ -1,9 +1,10 @@
 # Alert App: Project Plan
 
-Last updated: 2026-10-20 (milestone 2 done: admin users)
+Last updated: 2026-10-20 (milestone 4 done: email channel; scope: milestones 4, 5 and 7)
 
 This document holds everything we have decided so far, and why. The full discussion is in
-[docs/claude-conversations/](claude-conversations/).
+[docs/claude-conversations/](claude-conversations/). The short version for the current scope is
+[PLAN_SUMMARY.md](PLAN_SUMMARY.md) (loaded into every Claude session).
 
 ## Product brief (from the PM)
 
@@ -24,7 +25,14 @@ The PM was not available for questions, so the decisions below are ours.
 
 - The developer is a frontend developer who is new to backend work. Backend concepts are explained as they come up.
 - **One step at a time.** Each step is checked by the developer before the next one starts.
-- The developer makes all commits. Claude does not commit.
+- The developer makes all commits. Claude does not commit unless asked.
+- **One branch per milestone** (decided 2026-10-20), created from `main` when the milestone starts:
+  `milestone-<n>-<short-name>` (e.g. `milestone-4-email-channel`), so every milestone's work can be looked at later.
+  Milestones 0–3 were made on `main` before this rule.
+- **New or changed decisions are written into this plan** (and [PLAN_SUMMARY.md](PLAN_SUMMARY.md) if they affect
+  the current scope) in the same step, so they never have to be repeated.
+- **Questions that come up while implementing** go to [Questions for the manager](#questions-for-the-manager) at the
+  end of this plan, with the default we picked meanwhile. The developer asks the manager at the end of the scope.
 - Project rules for every Claude session are in [CLAUDE.md](../CLAUDE.md).
 - Each phase's conversation is saved in [docs/claude-conversations/](claude-conversations/).
 
@@ -78,6 +86,7 @@ Free news APIs we compared (October 2026; third-party sources disagreed on some 
   - `hourly`: one digest message per hour
   - `daily`: one digest at a time the user picks, in their time zone
 - Matches for digests are stored in a pending table and sent by a scheduled job. Adding "weekly" later is small.
+- **Current scope: `instant` only.** Hourly and daily digests (milestone 6) are in the [TODO list](#todo-later).
 
 ### Notification channels
 
@@ -87,7 +96,8 @@ Free news APIs we compared (October 2026; third-party sources disagreed on some 
   - SendGrid (used by the developer before) **retired its permanent free plan in 2025**: only a 60-day trial,
     then from $19.95/month.
   - Resend has a free tier (3,000 emails/month, 100/day at last check; verify) and **React Email**, so templates
-    are written as React components.
+    are written as React components. **Milestone 4 uses plain HTML** because of the time (React Email is in the TODO).
+  - Without a verified domain, Resend only delivers to the Resend account owner's email (fine for development).
   - It sits behind an `EmailProvider` interface, so switching to SendGrid, Mailgun or SES is one small class.
 - **Slack: not decided yet.** Incoming webhooks (user pastes a URL, very easy) are probably enough.
   A Slack app with OAuth is nicer but more work. **Research and decide when we implement milestone 7.**
@@ -197,7 +207,7 @@ Production Redis: a managed service (e.g. Upstash, Redis Cloud) or the hosting p
   version syncing), and one feature usually touches backend + shared + frontend in one commit/PR.
 - The developer is used to one repo per app at work. **If the app is approved and the team grows, we can split
   it into separate repos later.**
-- Git: branch `main`, `.gitattributes` forces LF line endings (Windows + Prettier), one root `.gitignore`.
+- Git: branch `main` + one branch per milestone (see [How we work](#how-we-work)), `.gitattributes` forces LF line endings (Windows + Prettier), one root `.gitignore`.
 - **Node.js >= 24.15** (`engines` in the root `package.json`). The NestJS CLI's tooling requires it.
 - **TypeScript 6.0 in all projects.** TypeScript 7 is not supported yet by `typescript-eslint` (peer range `<6.1`)
   or by the NestJS CLI (`~6.0`).
@@ -345,6 +355,10 @@ functions (e.g. `global/utils/authApi`) with `vi.mock`, so the real hooks and qu
 
 ### Milestone list
 
+**Scope cut (2026-10-20):** we are running out of time, so the current scope is **milestones 4, 5 and 7** (in this
+order). Milestones 6, 8, 9 and 10 moved to the [TODO list](#todo-later), to revisit after this scope. The numbers
+stay the same, so older notes still match.
+
 | #   | Milestone                    | Goal                                                                                     | Status        |
 | --- | ---------------------------- | ---------------------------------------------------------------------------------------- | ------------- |
 | 0   | Setup                        | Monorepo, frontend and backend scaffolds, shared package, Docker, tooling                | Done (commit) |
@@ -352,13 +366,13 @@ functions (e.g. `global/utils/authApi`) with `vi.mock`, so the real hooks and qu
 | 1   | Login                        | Sign up, log in, log out, protected routes, user role (Better Auth). Form field wrappers | Done (commit) |
 | 2   | Admin: users                 | List users, enable/disable, change role                                                  | Done (commit) |
 | 3   | Alert rules                  | Create, edit, delete, list own rules. Final category list + NewsData.io mapping          | Done (commit) |
-| 4   | Email channel                | Connect an email address, send a test message (Resend)                                   | **Next**      |
-| 5   | First real alerts            | NewsData.io → matcher → instant email (BullMQ)                                           | –             |
-| 6   | Digests                      | Hourly and daily delivery, time zone setting                                             | –             |
-| 7   | Slack                        | Slack channel through `NotificationChannel`                                              | –             |
-| 8   | Admin: rules, sources, log   | All rules, source status and settings, notification log                                  | –             |
-| 9   | Email verification and reset | Email verification, password reset                                                       | –             |
-| 10  | Production readiness         | Rate limiting, monitoring, hosting, deployment                                           | –             |
+| 4   | Email channel                | Connect an email address, send a test message (Resend)                                   | Done (branch) |
+| 5   | First real alerts            | NewsData.io → matcher → instant email (BullMQ)                                           | **Next**      |
+| 7   | Slack                        | Slack channel through `NotificationChannel`                                              | In scope      |
+| 6   | Digests                      | Hourly and daily delivery, time zone setting                                             | TODO          |
+| 8   | Admin: rules, sources, log   | All rules, source status and settings, notification log                                  | TODO          |
+| 9   | Email verification and reset | Email verification, password reset                                                       | TODO          |
+| 10  | Production readiness         | Rate limiting, monitoring, hosting, deployment                                           | TODO          |
 
 ### Phase 0 setup steps
 
@@ -769,16 +783,239 @@ client / Orval setup. Later milestones: empty state (3), confirm dialog (3), dat
     body), on/off switch, delete after asking (Cancel focused), "New alert" disabled at 20.
   - Checked that two tests really catch bugs: the "another user's rule" e2e test fails without the `userId`
     filter, and the duplicate keyword test fails without the duplicate check.
-- [ ] 7. Wrap-up: `npm run format`, plan updated, conversation saved in `docs/claude-conversations/3-alert-rules_*`, review by the developer, commit by the developer.
+- [x] 7. Wrap-up: `npm run format`, plan updated, conversation saved in `docs/claude-conversations/3-alert-rules_*`, review by the developer, commit by the developer.
+
+### Milestone 4 steps (email channel)
+
+Branch: `milestone-4-email-channel`.
+
+**Scope: included**
+
+- **Channels:** a user has a list of channels (where alerts are sent): type (`email` for now), settings (the
+  address) and a name. Every type is a `NotificationChannel` class, so Slack (milestone 7) is one more class.
+- **The email channel is the user's account email** (decided with the developer), created automatically. No form
+  for other addresses. Existing users get one in the migration.
+- **Page `/channels`:** list of the user's channels with a **"Send test message"** button. Loading, error, mobile
+  layout. The link is in the account menu (the AppBar has no room left on phones).
+- **Test message:** a short email through Resend. Max **1 per minute per channel** (429 otherwise), because the
+  free tier's 100 emails/day are shared by all users.
+- **Channel picker in the alert dialog:** every rule sends to **at least one channel** (decided with the
+  developer). Existing rules get the user's email channel in the migration.
+- **`EmailProvider` interface:** `ResendEmailProvider` when `RESEND_API_KEY` is set, otherwise `LogEmailProvider`
+  (writes the email to the backend log, so tests and local work use no quota).
+- **Plain HTML templates** (decided with the developer, because of the time). React Email is in the TODO list.
+- **No verified domain** (development only): Resend's test sender `onboarding@resend.dev` only delivers to the
+  Resend account owner's email. Other addresses get a 403 from Resend. Real delivery needs a domain (manager
+  question 3).
+
+**Scope: left out**
+
+- Extra email addresses (need a confirmation link), renaming or deleting channels, React Email templates (TODO).
+  Slack (milestone 7). Real alert emails (milestone 5). Notification log and delivery status (TODO, milestone 8).
+- **Known risk:** account emails are not verified yet (milestone 9, TODO). Someone could sign up with another
+  person's address, and that person would get the alerts. Acceptable for development.
+
+**Steps**
+
+- [x] 0. Scope
+- [x] 1. Model: `Channel` (`id` uuid v7, `userId`, `type` enum `email`, `config Json` default `{}`,
+      `lastTestSentAt?`, timestamps) and the join table `AlertRuleChannel` (`alertRuleId` + `channelId` as the
+      primary key, index on `channelId`, cascade deletes on both sides). `User.channels`, `AlertRule.channels`.
+      Migration runs in step 4.
+  - **No address in the channel:** the email channel's `config` is `{}`, and sending reads `user.email`, so it is
+    never out of date. Slack (milestone 7) stores its settings in `config`, checked by its own Zod schema.
+  - **Explicit join table** instead of Prisma's implicit many-to-many (`_AlertRuleToChannel` with columns `A`/`B`):
+    readable names, and the migration inserts rows into it.
+  - `type` is a Postgres enum (types are only added, which is easy). No `name` field yet: the page shows the type
+    and the address; Slack can add a label in milestone 7.
+  - `lastTestSentAt` in the database for the 1-per-minute test limit (survives restarts, no Redis needed).
+  - The migration also adds data: one email channel per existing user, and every existing rule linked to its
+    owner's email channel (ids from `gen_random_uuid()`, v4, because Postgres 17 can't make v7). New users get
+    their channel from a Better Auth hook after sign-up (step 4).
+  - "At least one channel per rule" and "one email channel per user" are checked in Zod and the service.
+- [x] 2. API contract. Schemas: `packages/shared/src/schemas/channels.ts` (+ `channelIds` in `schemas/alert-rules.ts`),
+      constants: `constants/channels.ts` (`CHANNEL_TYPES`, `CHANNEL_TEST_COOLDOWN_SECONDS` = 60,
+      `CHANNELS_PER_RULE_MAX` = 10). All endpoints need a login (401).
+
+  | Endpoint                      | Request                                      | Success                                  | Errors                                                                          |
+  | ----------------------------- | -------------------------------------------- | ---------------------------------------- | ------------------------------------------------------------------------------- |
+  | `GET /api/channels`           | –                                            | 200 `{ items: Channel[] }`, oldest first | –                                                                               |
+  | `POST /api/channels/:id/test` | –                                            | 204 (no body), test message sent         | 404 `CHANNEL_NOT_FOUND`, 429 `CHANNEL_TEST_TOO_SOON`, 502 `CHANNEL_TEST_FAILED` |
+  | `POST /api/alert-rules`       | + `channelIds` (required)                    | `AlertRule` with `channelIds`            | + 400 `INVALID_CHANNEL` (field error on `channelIds`)                           |
+  | `PATCH /api/alert-rules/:id`  | + `channelIds` (optional, replaces the list) | `AlertRule` with `channelIds`            | + 400 `INVALID_CHANNEL`                                                         |
+  - `Channel`: `id, type, destination`. `destination` is what the page shows (the user's email for email), filled
+    by the backend, so the frontend doesn't need to know how a type stores its settings.
+  - **Test = `POST`**: it's an action with a side effect. `GET` must never send anything (browsers and proxies may
+    repeat or preload `GET`s).
+  - **429** says when to try again (`{{seconds}}` in the text + the standard `Retry-After` header). The time is
+    saved **before** sending, so a failed send also counts: two quick clicks can't send twice, and a broken setup
+    can't use up the quota.
+  - **502** = a service behind us (Resend) failed. The user sees a general text, the Resend error only goes to
+    the backend log. Sending happens inside the request (queues come in milestone 5).
+  - `channelIds`: 1–10 ids, no duplicates (Zod, keys `channelIds.required/tooMany/duplicate`). Ids that aren't the
+    user's channels (unknown, another user's, malformed) → the same 400 `INVALID_CHANNEL`. Also in the form schema.
+  - Existing rules get their channel from the migration (step 4), so the API always returns at least one id for them.
+  - OperationIds: `getChannels`, `sendChannelTest`. OpenAPI schemas `Channel`, `ChannelList` registered.
+  - Shared tests updated for `channelIds` (37 pass). The backend and frontend don't compile until steps 3–4 add
+    `channelIds` there.
+
+- [ ] 3. Frontend UI
+- [x] 3. Frontend UI: `/channels` (`ChannelsPage` + `ChannelCard`), "Channels" in the account menu, "Send to"
+      checkboxes in the alert dialog (`ChannelsField`), `channels` translations. Runs on temporary sample data
+      (`pages/Channels/sampleChannels.ts`, deleted in step 5).
+  - Channel cards: type, address (wraps on phones), hint, "Send test message" (button name includes the channel for
+    screen readers). One column on phones, two from `sm`. Loading and error ("Try again") states are in place for
+    step 5. The list is never empty (every user has the email channel), so no empty state.
+  - "Send to" is a checkbox group (`fieldset` + `legend`), at least one required, error read out by screen readers.
+    New alerts start with every channel ticked; ids keep the channel list's order.
+  - **"Sends to" column in the alerts list** (asked for by the developer): one icon per channel of the rule, in the
+    channel list's order. The tooltip ("Email (you@example.com)", a tap shows it on touch screens) is also the
+    icon's accessible name (`role="img"`). `ChannelIcon` in `global/components/` maps a type to its icon (used by
+    the list and the channel cards). Slack gets its own `SvgIcon` in milestone 7 (MUI has no brand icons).
+  - Until steps 4–5: saving an alert fails (the running backend doesn't know `channelIds` yet), one type error in
+    `useUpdateAlertRule` (Orval types regenerated in step 5), 3 frontend tests that check exact request bodies
+    (updated in step 6).
+- [x] 4. Backend: migration `channels` (tables + data: one email channel per existing user, every existing rule
+      linked to it), `ChannelsModule` (`src/channels/`: `ChannelsController`, `ChannelsService`,
+      `NotificationChannel` + `EmailChannel`), `EmailModule` (`src/email/`: `EmailProvider`,
+      `ResendEmailProvider`, `LogEmailProvider`, plain HTML templates), Better Auth `databaseHooks.user.create.after`
+      (email channel for new users, also for the seed script), `channelIds` in `AlertRulesService`, `resend` and
+      `date-fns` installed, `RESEND_API_KEY`/`EMAIL_FROM` in `.env.example`. Checked with curl: sign-up creates the
+      channel, list, 401, test 204 → again 429 (`Retry-After: 60`, seconds in the text), another user's/unknown
+      channel 404, rule without channels / empty / duplicates (400 `VALIDATION_FAILED`), another user's or a
+      malformed channel id (400 `INVALID_CHANNEL` on `channelIds`), create with own channel (201 with `channelIds`),
+      `PATCH { enabled }` keeps the channels, Swagger has `getChannels`/`sendChannelTest`.
+  - **`EmailProvider` is an abstract class**, not an interface: interfaces don't exist at runtime, so Nest couldn't
+    use one to find the provider. `EmailModule` picks Resend when `RESEND_API_KEY` is set, otherwise the log.
+  - **`NotificationChannel`**: `type`, `validateConfig()`, `destination()` (what the page shows), `send(target,
+message, language)`. The message is channel-independent (`{ kind: 'test' }`; milestone 5 adds `'alert'`), each
+    channel turns it into its own format. All channels are registered under the `NOTIFICATION_CHANNELS` token.
+  - **Test limit in one atomic query:** `updateMany` "set `lastTestSentAt` = now where it's empty or older than 60s".
+    The database runs it as one step, so two clicks at the same moment can't both pass. 0 rows changed → 404 (not
+    the user's channel) or 429 (with the seconds left).
+  - Resend's SDK returns errors instead of throwing; the provider turns them into an exception. The service logs it
+    and answers 502 `CHANNEL_TEST_FAILED` (details only in the log).
+  - `ApiException` got a 4th argument `extras` (`values` for the message, `headers`); `HttpException` already uses
+    the name `options`.
+  - Email texts are translated too (`src/i18n/locales/en/emails.ts`, `translateEmail()`); values are HTML-escaped
+    in the HTML version (`escapeHtml()`), so a name like `<b>Ann</b>` is shown as text.
+  - The sign-up hook runs after Better Auth saved the user, not in the same transaction. If it ever failed, that
+    user would have no channel (their rules couldn't be saved). Acceptable for now; noted for milestone 5.
+  - Backend unit tests still pass (25). The e2e tests are updated in step 6.
+- [x] 5. Connect: Orval hooks regenerated (`api/generated/channels/`, `channelIds` in the alert rule models), our
+      hooks `useChannels` and `useSendChannelTest` (`api/channels/`), sample data deleted.
+  - Test message: success → "Test message sent to …", error → the server's message (already translated, e.g. "…
+    try again in 42 seconds."). Only the clicked card's button shows the loading state.
+  - The alerts page waits for **both** lists (alerts and channels) before it shows the list, "New alert" or the
+    empty state: the "Sends to" icons and the dialog need the channels. A load error in either shows the error with
+    "Try again" (reloads what failed).
+  - The channel list passed to the dialog is the same array on every render (`useMemo`): a new `[]` each render
+    would make the dialog reset its form again and again.
+- [x] 6. Tests: shared 37 (+2: `channelIds` in the create/update schemas), backend 30 unit (+5: test email
+      template, error filter `extras`) + 42 e2e (+9: 6 in the new `channels.e2e-spec.ts`, 3 in
+      `alert-rules.e2e-spec.ts`), frontend 85 (+6: `ChannelsPage`, alerts page channels, "Channels" menu link).
+  - Fixed for `channelIds`: the alert rule e2e tests read the user's email channel and send it (`createRule()`
+    adds it), the frontend fake backend answers `GET /api/channels` (`testChannel()` in `test/fixtures.ts`), and the
+    expected request bodies include `channelIds`.
+  - **The channel e2e tests replace `EmailProvider` with a fake** (`overrideProvider`), because `.env` may hold a
+    real Resend key: no real email is sent and no quota is used. They check: login needed, one email channel after
+    sign-up, test email (recipient, subject, text), 429 with `Retry-After` and the seconds, 204 again "a minute
+    later" (`lastTestSentAt` moved back in the database), another user's/unknown channel 404 and unchanged, 502
+    without the provider's details (and the failed send still counts).
+  - Alert rule e2e: missing/empty/duplicate `channelIds`, another user's or a malformed channel id (400
+    `INVALID_CHANNEL`, nothing saved, `PATCH` leaves the rule unchanged), `PATCH channelIds` replaces the list,
+    `PATCH enabled` keeps it, ids come back in channel-list order.
+  - Frontend: channel card (heading, address, button name with the channel), test message success and the server's
+    429 text, load error + "Try again"; alerts page "Sends to" icon name, channels load error (no "New alert"), new
+    alert starts ticked, unticked → "Choose at least one channel." with focus and no request.
+  - Usernames in e2e tests have a 30-character limit (`e2e_<runId>_<name>`), so test user names stay short.
+  - Checked that two tests really catch bugs: the "another user's channel" e2e test fails without
+    `assertOwnChannels`, and the 429 test fails without the 1-minute check. Both checks were put back after.
+- [x] 7. Wrap-up: `npm run format`, plans updated (this file + PLAN_SUMMARY.md), conversation saved in
+      `docs/claude-conversations/4-email-channel_*`, review by the developer, commit by the developer (on
+      `milestone-4-email-channel`).
 
 ---
 
-## Open questions
+## Open questions (ours, decided during the scope)
 
-- **Slack:** incoming webhook or Slack app (OAuth)? Decide in milestone 7 after research.
+- **Slack:** incoming webhook or Slack app (OAuth)? Decide in milestone 7 after research. With the time pressure,
+  the simpler option is preferred.
 - **Polling vs. quota:** 9 categories need ~240 requests/day at hourly polling, above NewsData.io's ~200/day.
   Choose the interval/order (or a paid plan) in milestone 5.
-- **Hosting and deployment** (e.g. Railway/Render/Fly.io for the backend, Vercel/Netlify for the frontend).
 - **Verify before launch:** NewsData.io and Resend free-tier terms on their official pricing pages.
-- Later: other alert types from the brief (market movements, natural disasters), e.g. Finnhub/Alpha Vantage
-  for markets, USGS/GDACS/NASA EONET for disasters, as additional `NewsSourceAdapter`s.
+
+## TODO (later)
+
+Moved out of the current scope on 2026-10-20. Revisit after milestones 4, 5 and 7.
+
+**Milestones**
+
+- **6. Digests:** hourly and daily delivery, `PendingNotification` table, digest queue, time zone setting
+  (see [Frequency](#frequency)).
+- **8. Admin: rules, sources, log:** all users' rules (on/off), a user's rules, source status and settings
+  (enable, poll interval, last fetch, errors, quota), notification log with retry (see [Admin](#admin)).
+- **9. Email verification and password reset** (Better Auth).
+- **10. Production readiness:** rate limiting beyond Better Auth's defaults, monitoring, hosting and deployment
+  (e.g. Railway/Render/Fly.io for the backend, Vercel/Netlify for the frontend).
+
+**Smaller items**
+
+- Alert rules: `matchMode` (any/all keywords), keywords + category together, language filter.
+- Admin users: filters (role, status), sorting, search/page in the URL.
+- Global "401 → back to login" handler (a disabled user keeps seeing the open page until the next session check).
+- Profile/settings page (language, profile, time zone).
+- Log in with username, Google login, 2FA.
+- Other alert types from the brief (market movements, natural disasters), e.g. Finnhub/Alpha Vantage for markets,
+  USGS/GDACS/NASA EONET for disasters, as additional `NewsSourceAdapter`s.
+- Playwright end-to-end tests. Category mapping editor for admins.
+- Email: React Email templates instead of plain HTML (M4 used plain HTML because of the time). Extra email addresses
+  with a confirmation link. Rename and delete channels.
+- Sending to any user needs a verified Resend domain (M4 is development only, see manager question 3).
+
+## Questions for the manager
+
+Collected while implementing, asked by the developer **at the end of the current scope**. Each question notes the
+default we use until there is an answer. It includes every point where the developer said "it can be changed later",
+"if the product team asks" or "we can extend it later" (from the conversations in
+[docs/claude-conversations/](claude-conversations/)).
+
+**News data**
+
+1. **Is NewsData.io's free tier good enough?** It has delays of up to ~12h (no real "breaking news"), snippets
+   only, and with 9 categories we go above the ~200 requests/day limit, so some days have fewer articles.
+   Should we pay for a plan or add more sources?
+   - Default: NewsData.io free tier, fewer articles when the quota runs out. _(Planning: "we can extend it if it's
+     working correctly and we like the result"; M3: "if we go above the limit, it will have fewer data")_
+2. **Which other alert types matter most** (market movements, natural disasters, from the brief)?
+   - Default: news with categories only. _(Planning)_
+
+**Notifications**
+
+3. **Is Resend's free tier enough?** It allows 100 emails/day and 3,000/month **for all users together**, and
+   needs a verified domain to send to anyone other than the Resend account owner. Do we have a company domain we can
+   use, and is a paid plan possible?
+   - Default: free tier, sending from a verified domain if there is one. _(M4)_
+
+**Alert rules**
+
+4. **Should keyword rules match all keywords (AND) or any of them (OR)?** Or should users choose?
+   - Default: all keywords (AND). _(M3: "later we can add OR if production decides")_
+5. **Should one rule combine keywords and a category** (or several categories)?
+   - Default: a rule uses keywords **or** one category. _(Planning: categories + keywords; M3: "we can update the
+     implementation")_
+6. **Are hourly/daily digests needed for the first release?**
+   - Default: every alert is sent instantly (digests are in the TODO list). _(Planning: "a setting to choose the
+     interval"; scope cut)_
+
+**Users and admin**
+
+7. **Is email and password enough to log in?** Or are Google login, SSO or 2FA needed?
+   - Default: email and password. _(Planning: "we can add anything if needed")_
+8. **Do admins need filters (role, status) and sorting in the user list?**
+   - Default: search by username/email and pagination only. _(M2: "we can add later if it's asked")_
+
+**Project**
+
+9. **If the app is approved, will more developers join?** Then we split the monorepo into one repo per app.
+   - Default: one monorepo. _(Planning: "if this app is approved, we can change later")_

@@ -8,6 +8,7 @@ import {
 } from '../constants/alert-rules.js';
 import { APP_CATEGORIES } from '../constants/categories.js';
 import { appCategorySchema } from './categories.js';
+import { channelIdsSchema } from './channels.js';
 
 /**
  * Alert rule rules shared by the frontend (form validation) and the backend (request validation).
@@ -59,6 +60,8 @@ export const alertRuleSchema = z.object({
   category: appCategorySchema.nullable(),
   /** Switched-off rules are kept but never matched. */
   enabled: z.boolean(),
+  /** Where matches are sent (ids from GET /api/channels). */
+  channelIds: z.array(z.string()),
   /** ISO 8601, e.g. 2026-10-19T20:46:42.000Z */
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
@@ -75,6 +78,7 @@ const alertRuleBaseSchema = z.object({
   name: alertRuleNameSchema,
   /** Default: true */
   enabled: z.boolean('invalid').optional(),
+  channelIds: channelIdsSchema,
 });
 
 /**
@@ -103,6 +107,7 @@ export const alertRuleFormSchema = z
     keywords: z.array(z.string()),
     /** '' = nothing selected yet */
     category: z.string(),
+    channelIds: z.array(z.string()),
   })
   // The form shape isn't the request shape yet, so hand the values on as `unknown`
   .transform((values): unknown => values)
@@ -114,11 +119,13 @@ export type AlertRuleFormValues = z.input<typeof alertRuleFormSchema>;
  * The on/off switch sends `{ enabled }`, the edit form sends everything.
  * Sending `type` requires its field (`keywords` or `category`); the backend clears the other one.
  * `keywords` or `category` without `type` is rejected, because it's unclear what was meant.
+ * `channelIds` replaces the whole list.
  */
 export const updateAlertRuleRequestSchema = z
   .object({
     name: alertRuleNameSchema.optional(),
     enabled: z.boolean('invalid').optional(),
+    channelIds: channelIdsSchema.optional(),
     type: alertRuleTypeSchema.optional(),
     keywords: keywordsSchema.optional(),
     category: alertRuleCategorySchema.optional(),

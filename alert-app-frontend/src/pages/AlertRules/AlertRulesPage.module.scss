@@ -17,6 +17,18 @@
   color: var(--mui-palette-text-secondary);
 }
 
+// Channel icons of a rule
+.channels {
+  display: inline-flex;
+  align-items: center;
+  gap: spacing(1);
+}
+
+.channelIcon {
+  display: inline-flex;
+  color: var(--mui-palette-text-secondary);
+}
+
 .actions {
   display: inline-flex;
   white-space: nowrap;

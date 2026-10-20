@@ -5,6 +5,8 @@ import {
   alertRuleSchema,
   categoryListSchema,
   categorySchema,
+  channelListSchema,
+  channelSchema,
   createAlertRuleRequestSchema,
   updateAdminUserRequestSchema,
   updateAlertRuleRequestSchema,
@@ -31,6 +33,8 @@ const apiSchemas = {
   AlertRuleList: alertRuleListSchema,
   CreateAlertRuleRequest: createAlertRuleRequestSchema,
   UpdateAlertRuleRequest: updateAlertRuleRequestSchema,
+  Channel: channelSchema,
+  ChannelList: channelListSchema,
 } satisfies Record<string, z.ZodType>;
 
 export type ApiSchemaName = keyof typeof apiSchemas;

@@ -9,7 +9,7 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiRequestError, orvalFetch } from '../../global/utils/apiFetch';
 import { getSession } from '../../global/utils/authApi';
-import { testAlertRule, testSession } from '../../test/fixtures';
+import { testAlertRule, testChannel, testSession } from '../../test/fixtures';
 import { renderRoute } from '../../test/renderWithProviders';
 
 // The generated Orval code sends every request through orvalFetch. Faking it (and nothing else)
@@ -52,6 +52,9 @@ function serve(initialRules: AlertRule[], fail?: (request: FakeRequest) => ApiEr
 
     if (path === '/api/categories') {
       return Promise.resolve({ items: APP_CATEGORIES.map((id) => ({ id })) });
+    }
+    if (path === '/api/channels') {
+      return Promise.resolve({ items: [testChannel()] });
     }
     const id = path.split('/').at(-1);
     const changed = (rule: AlertRule, values: Record<string, unknown>): AlertRule => ({
@@ -116,6 +119,11 @@ describe('AlertRulesPage', () => {
     expect(within(evCard).getByText('Tesla')).toBeInTheDocument();
     expect(within(evCard).getByRole('switch', { name: 'Send alerts for EV news' })).toBeChecked();
 
+    // "Sends to": the channel icon, named by its tooltip
+    expect(
+      within(evCard).getByRole('img', { name: 'Email (test@example.com)' }),
+    ).toBeInTheDocument();
+
     const sportsCard = screen.getByRole('heading', { name: 'Sports news' }).closest('li')!;
     expect(within(sportsCard).getByText('Sports')).toBeInTheDocument();
     expect(within(sportsCard).getByRole('switch')).not.toBeChecked();
@@ -146,6 +154,22 @@ describe('AlertRulesPage', () => {
     expect(await screen.findByRole('heading', { name: 'EV news' })).toBeInTheDocument();
   });
 
+  it('shows the load error when the channels do not load', async () => {
+    serve([evNews], ({ method, path }) =>
+      method === 'GET' && path === '/api/channels'
+        ? { code: 'INTERNAL_SERVER_ERROR', message: 'Boom' }
+        : undefined,
+    );
+    renderRoute('/alerts');
+
+    expect(await screen.findByText('Your alerts could not be loaded.')).toBeInTheDocument();
+    // No "New alert" without channels: the dialog needs them
+    expect(screen.queryByRole('button', { name: 'New alert' })).not.toBeInTheDocument();
+    serve([evNews]);
+    await userEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(await screen.findByRole('heading', { name: 'EV news' })).toBeInTheDocument();
+  });
+
   it('creates a keyword rule: Enter adds a keyword, leaving the field adds the typed text', async () => {
     const user = userEvent.setup();
     serve([sports]);
@@ -163,7 +187,13 @@ describe('AlertRulesPage', () => {
       {
         method: 'POST',
         path: '/api/alert-rules',
-        body: { name: 'Floods', type: 'keywords', keywords: ['heavy rain', 'Danube'] },
+        body: {
+          name: 'Floods',
+          type: 'keywords',
+          keywords: ['heavy rain', 'Danube'],
+          // New alerts start with every channel ticked
+          channelIds: ['channel-1'],
+        },
       },
     ]);
     // The list was reloaded
@@ -199,7 +229,7 @@ describe('AlertRulesPage', () => {
       {
         method: 'POST',
         path: '/api/alert-rules',
-        body: { name: 'Health', type: 'category', category: 'health' },
+        body: { name: 'Health', type: 'category', category: 'health', channelIds: ['channel-1'] },
       },
     ]);
   });
@@ -220,6 +250,26 @@ describe('AlertRulesPage', () => {
     await user.click(within(dialog).getByRole('radio', { name: 'Category' }));
     await user.click(within(dialog).getByRole('button', { name: 'Create alert' }));
     expect(await within(dialog).findByText('Choose a category.')).toBeInTheDocument();
+    expect(changes()).toEqual([]);
+  });
+
+  it('needs at least one channel: ticked for a new alert, an error when unticked', async () => {
+    const user = userEvent.setup();
+    serve([evNews]);
+    renderRoute('/alerts');
+
+    const dialog = await openCreateDialog();
+    const sendTo = within(dialog).getByRole('group', { name: /send to/i });
+    const email = within(sendTo).getByRole('checkbox', { name: 'Email (test@example.com)' });
+    expect(email).toBeChecked();
+
+    await user.type(within(dialog).getByRole('textbox', { name: /name/i }), 'Floods');
+    await user.type(within(dialog).getByRole('combobox', { name: /keywords/i }), 'flood{Enter}');
+    await user.click(email);
+    await user.click(within(dialog).getByRole('button', { name: 'Create alert' }));
+
+    expect(await within(sendTo).findByText('Choose at least one channel.')).toBeInTheDocument();
+    expect(email).toHaveFocus();
     expect(changes()).toEqual([]);
   });
 
@@ -298,7 +348,12 @@ describe('AlertRulesPage', () => {
       {
         method: 'PATCH',
         path: '/api/alert-rules/rule-1',
-        body: { name: 'EV news', type: 'category', category: 'technology' },
+        body: {
+          name: 'EV news',
+          type: 'category',
+          category: 'technology',
+          channelIds: ['channel-1'],
+        },
       },
     ]);
     await dialogClosed();

@@ -8,9 +8,16 @@ import {
   type UpdateAlertRuleRequest,
 } from '@alert-app/shared';
 import { HttpStatus, Injectable } from '@nestjs/common';
+import { ChannelsService } from '../channels/channels.service.js';
 import { ApiException } from '../errors/api.exception.js';
-import type { AlertRule as AlertRuleRow, Prisma } from '../generated/prisma/client.js';
+import type { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+
+/** Every query loads the rule's channel ids, in the order of the channel list (oldest first). */
+const withChannels = {
+  channels: { select: { channelId: true }, orderBy: { channel: { createdAt: 'asc' } } },
+} satisfies Prisma.AlertRuleInclude;
+type AlertRuleRow = Prisma.AlertRuleGetPayload<{ include: typeof withChannels }>;
 
 /**
  * A user's own alert rules. Every query filters by `userId`, so nobody can see or change
@@ -19,12 +26,16 @@ import { PrismaService } from '../prisma/prisma.service.js';
  */
 @Injectable()
 export class AlertRulesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly channels: ChannelsService,
+  ) {}
 
   /** All rules of the user, newest first. At most 20, so no pagination. */
   async list(userId: string): Promise<AlertRuleList> {
     const rows = await this.prisma.alertRule.findMany({
       where: { userId },
+      include: withChannels,
       // `id` as a tie-breaker for rules created in the same millisecond (uuid v7 sorts by time)
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     });
@@ -43,15 +54,27 @@ export class AlertRulesService {
       if (count >= ALERT_RULES_PER_USER_MAX) {
         throw new ApiException(HttpStatus.BAD_REQUEST, 'ALERT_RULE_LIMIT_REACHED');
       }
+      await this.channels.assertOwnChannels(tx, userId, request.channelIds);
 
       const row = await tx.alertRule.create({
-        data: { userId, name: request.name, enabled: request.enabled, ...matchFields(request) },
+        data: {
+          userId,
+          name: request.name,
+          enabled: request.enabled,
+          ...matchFields(request),
+          // One row in the join table per channel
+          channels: { create: request.channelIds.map((channelId) => ({ channelId })) },
+        },
+        include: withChannels,
       });
       return toAlertRule(row);
     });
   }
 
-  /** Only the fields in `changes` are touched. Sending `type` replaces keywords/category. */
+  /**
+   * Only the fields in `changes` are touched. Sending `type` replaces keywords/category,
+   * sending `channelIds` replaces the whole channel list.
+   */
   async update(
     userId: string,
     ruleId: string,
@@ -59,12 +82,23 @@ export class AlertRulesService {
   ): Promise<AlertRule> {
     return this.prisma.$transaction(async (tx) => {
       await this.findOwn(tx, userId, ruleId);
+      if (changes.channelIds) await this.channels.assertOwnChannels(tx, userId, changes.channelIds);
 
       const match = matchChange(changes);
       const row = await tx.alertRule.update({
         where: { id: ruleId },
-        // `undefined` = Prisma leaves the column unchanged
-        data: { name: changes.name, enabled: changes.enabled, ...(match && matchFields(match)) },
+        // `undefined` = Prisma leaves the column (or the channel list) unchanged
+        data: {
+          name: changes.name,
+          enabled: changes.enabled,
+          ...(match && matchFields(match)),
+          channels: changes.channelIds && {
+            // Replace the list: remove the old links, add the new ones
+            deleteMany: {},
+            create: changes.channelIds.map((channelId) => ({ channelId })),
+          },
+        },
+        include: withChannels,
       });
       return toAlertRule(row);
     });
@@ -79,7 +113,10 @@ export class AlertRulesService {
   /** The user's rule, or 404. Works with the normal client and inside a transaction. */
   private async findOwn(db: Prisma.TransactionClient, userId: string, ruleId: string) {
     // findFirst, not findUnique: the filter has the owner as well as the id
-    const row = await db.alertRule.findFirst({ where: { id: ruleId, userId } });
+    const row = await db.alertRule.findFirst({
+      where: { id: ruleId, userId },
+      include: withChannels,
+    });
     if (!row) throw new ApiException(HttpStatus.NOT_FOUND, 'ALERT_RULE_NOT_FOUND');
     return row;
   }
@@ -119,6 +156,7 @@ function toAlertRule(row: AlertRuleRow): AlertRule {
     category:
       row.category === null ? null : (appCategorySchema.safeParse(row.category).data ?? 'other'),
     enabled: row.enabled,
+    channelIds: row.channels.map((link) => link.channelId),
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };

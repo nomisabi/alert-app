@@ -9,7 +9,7 @@ import {
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { pickLanguage, translateErrorCode, translateKey } from '../i18n/i18n.js';
-import { ApiException, type FieldErrorKey } from './api.exception.js';
+import { ApiException, type ApiExceptionExtras, type FieldErrorKey } from './api.exception.js';
 
 /**
  * Catches every error thrown while handling a request and sends it in one format (`ApiError`),
@@ -26,10 +26,10 @@ export class ApiExceptionFilter implements ExceptionFilter {
     const response = http.getResponse<Response>();
     const language = pickLanguage(request.headers['accept-language']);
 
-    const { status, code, fieldErrors } = this.normalize(exception);
+    const { status, code, fieldErrors, extras } = this.normalize(exception);
     const body: ApiError = {
       code,
-      message: translateErrorCode(language, code, status),
+      message: translateErrorCode(language, code, status, extras.values),
     };
     if (fieldErrors.length > 0) {
       body.fieldErrors = fieldErrors.map(({ field, key }) => ({
@@ -38,6 +38,7 @@ export class ApiExceptionFilter implements ExceptionFilter {
       }));
     }
 
+    if (extras.headers) response.set(extras.headers);
     response.status(status).json(body);
   }
 
@@ -45,19 +46,21 @@ export class ApiExceptionFilter implements ExceptionFilter {
     status: number;
     code: string;
     fieldErrors: FieldErrorKey[];
+    extras: ApiExceptionExtras;
   } {
     if (exception instanceof ApiException) {
       return {
         status: exception.getStatus(),
         code: exception.code,
         fieldErrors: exception.fieldErrors,
+        extras: exception.extras,
       };
     }
 
     // Nest's own errors, e.g. NotFoundException for an unknown URL
     if (exception instanceof HttpException) {
       const status = exception.getStatus();
-      return { status, code: HttpStatus[status] ?? 'ERROR', fieldErrors: [] };
+      return { status, code: HttpStatus[status] ?? 'ERROR', fieldErrors: [], extras: {} };
     }
 
     // A bug or an unexpected failure: log the details, but don't send them to the browser
@@ -66,6 +69,7 @@ export class ApiExceptionFilter implements ExceptionFilter {
       status: HttpStatus.INTERNAL_SERVER_ERROR,
       code: 'INTERNAL_SERVER_ERROR',
       fieldErrors: [],
+      extras: {},
     };
   }
 }

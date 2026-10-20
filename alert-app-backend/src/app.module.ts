@@ -4,6 +4,7 @@ import { AdminModule } from './admin/admin.module.js';
 import { AlertRulesModule } from './alert-rules/alert-rules.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { CategoriesModule } from './categories/categories.module.js';
+import { ChannelsModule } from './channels/channels.module.js';
 import { validateEnv } from './config/env.js';
 import { HealthModule } from './health/health.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
@@ -18,6 +19,7 @@ import { PrismaModule } from './prisma/prisma.module.js';
     AdminModule,
     CategoriesModule,
     AlertRulesModule,
+    ChannelsModule,
   ],
 })
 export class AppModule {}

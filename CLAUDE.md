@@ -1,7 +1,16 @@
 # Alert App
 
 Users set up alerts (news categories and keywords) and get notified by email or Slack. There is also an admin view.
-The full plan and all decisions are in [docs/PROJECT_PLAN.md](docs/PROJECT_PLAN.md). Read it before starting new work.
+The short plan for the current scope (milestones 4, 5, 7) is [docs/PLAN_SUMMARY.md](docs/PLAN_SUMMARY.md), loaded
+below into every conversation. The full plan with all decisions and reasons is
+[docs/PROJECT_PLAN.md](docs/PROJECT_PLAN.md): read the relevant section there when you need more detail.
+
+- When a decision is made or changes, update docs/PROJECT_PLAN.md (and docs/PLAN_SUMMARY.md if it affects the
+  current scope, plus their "Last updated" lines) in the same step, so it never has to be repeated.
+- Questions for the manager that come up while implementing go to the end of docs/PROJECT_PLAN.md
+  ("Questions for the manager"), with the default we use meanwhile.
+
+@docs/PLAN_SUMMARY.md
 
 ## Repository
 
@@ -14,6 +23,7 @@ The full plan and all decisions are in [docs/PROJECT_PLAN.md](docs/PROJECT_PLAN.
 
 - The developer is a frontend developer who is new to backend work. Explain backend concepts when introducing them.
 - Work step by step and stop after each step so it can be checked. Do not commit unless asked.
+- One branch per milestone (`milestone-<n>-<short-name>`, from `main`), created when the milestone starts.
 - Work in vertical slices: one milestone (feature) at a time, following the "Steps for every milestone" in
   docs/PROJECT_PLAN.md (scope → model → API contract → frontend UI → backend → connect → tests → wrap-up). No API mocks (no MSW).
 - **Frontend folders** (details in docs/PROJECT_PLAN.md): `src/global/{components,hooks,utils}` for anything used in
