@@ -94,7 +94,11 @@ export function SlackChannelDialog({ open, channel, onSubmit, onClose }: SlackCh
             </ol>
             <Link href={SLACK_WEBHOOKS_GUIDE_URL} target="_blank" rel="noopener noreferrer">
               {t('connect.guide')}
-              <OpenInNewIcon fontSize="inherit" className={styles.linkIcon} aria-hidden="true" />
+              <OpenInNewIcon
+                fontSize="inherit"
+                className={styles.linkIcon}
+                aria-hidden="true"
+              />{' '}
               <span className={styles.visuallyHidden}>{t('connect.newTab')}</span>
             </Link>
           </section>

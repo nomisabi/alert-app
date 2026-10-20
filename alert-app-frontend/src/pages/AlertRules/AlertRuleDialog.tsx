@@ -20,7 +20,7 @@ import {
   RadioGroup,
   useMediaQuery,
 } from '@mui/material';
-import { useEffect, useId } from 'react';
+import { useEffect, useEffectEvent, useId } from 'react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { FormTextField } from '../../global/components/FormTextField/FormTextField';
@@ -66,10 +66,13 @@ export function AlertRuleDialog({
   } = form;
   const type = useWatch({ control, name: 'type' });
 
-  // Start fresh every time the dialog opens
+  // Start fresh every time the dialog opens. Only then: the channels can reload while it's open
+  // (e.g. after connecting Slack in another tab), and that must not clear what was typed.
+  // useEffectEvent reads the latest channels without making the effect run when they change.
+  const resetForm = useEffectEvent(() => reset(toFormValues(rule, channels)));
   useEffect(() => {
-    if (open) reset(toFormValues(rule, channels));
-  }, [open, rule, channels, reset]);
+    if (open) resetForm();
+  }, [open, rule]);
 
   const close = () => {
     if (!isSubmitting) onClose();

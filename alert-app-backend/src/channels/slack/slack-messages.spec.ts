@@ -98,6 +98,29 @@ describe('slackMessage', () => {
     expect(sectionText(blocks[1])).toMatch(/^\*Tesla unveils a cheaper model\*\n/);
   });
 
+  it('drops the link of a URL so long that Slack would refuse the message (3,000 per section)', () => {
+    const longUrl = `https://example.com/a?${'tracking=x&'.repeat(300)}`;
+    const { blocks } = alert([article({ url: longUrl })]);
+    const section = sectionText(blocks[1])!;
+
+    expect(section.length).toBeLessThanOrEqual(3000);
+    expect(section).toMatch(/^\*Tesla unveils a cheaper model\*\n/);
+    expect(section).not.toContain('example.com/a');
+  });
+
+  it('keeps every section under 3,000 characters, even with the longest title and description', () => {
+    // & is escaped to &amp;, so these are 5 times longer after escaping
+    const { blocks } = alert([
+      article({
+        title: '&'.repeat(400),
+        description: '&'.repeat(400),
+        url: `https://example.com/${'x'.repeat(2000)}`,
+      }),
+    ]);
+
+    expect(sectionText(blocks[1])!.length).toBeLessThanOrEqual(3000);
+  });
+
   it('shortens long descriptions and very long titles', () => {
     const { blocks } = alert([
       article({ title: 'T'.repeat(400), description: 'word '.repeat(200) }),

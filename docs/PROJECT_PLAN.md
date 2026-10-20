@@ -1,6 +1,6 @@
 # Alert App: Project Plan
 
-Last updated: 2026-10-20 (milestone 7 done: Slack; the current scope is finished, next: questions for the manager)
+Last updated: 2026-10-20 (wrap-up: code review fixes, the rest in the TODO; README rewritten for the reviewer with screenshots; next: the developer's summary in the README)
 
 This document holds everything we have decided so far, and why. The full discussion is in
 [docs/claude-conversations/](claude-conversations/). The short version for the current scope is
@@ -1350,6 +1350,24 @@ Branch: `milestone-7-slack`.
     need a test that they never reach responses, errors or logs (it found the response body being copied into
     the error).
 
+### Wrap-up: code review fixes
+
+On branch `wrap-up` (2026-10-20), after the current scope. The developer ran a code review (9 findings, all edge
+cases). The small ones were fixed with tests; the rest are in the [TODO list](#todo-later) ("From the code review").
+
+- **A new webhook URL counts as a test message** (`PATCH /api/channels/:id`): the same one-per-minute limit as
+  "Send test message" (429 `CHANNEL_TEST_TOO_SOON` + `Retry-After`), counted before sending, so switching between
+  URLs can't post to Slack without limit. `ChannelsService.claimTestSlot()` is shared by both.
+- **"Send test message" to a webhook Slack refuses** (removed in Slack, channel archived) → 400
+  `SLACK_WEBHOOK_REMOVED` ("edit the Slack channel and paste a new webhook URL") instead of 502 "try again later".
+- **Slack sections stay under 3,000 characters:** an article whose link would make its section too long (a URL full
+  of tracking codes) is shown without the link, instead of Slack refusing the whole alert.
+- **"Connect Slack" in the alert dialog opens `/channels` in a new tab**, so what was typed stays. The channels
+  query reloads when the tab gets focus again (`refetchOnWindowFocus: 'always'`, only for this query), and the
+  dialog resets only when it opens (`useEffectEvent`), not when the channels reload.
+- `SlackChannelFormValues` (frontend) is now the shared `EditSlackChannelFormValues` (inferred from the schema).
+- Screen readers: the "(opens in a new tab)" text had no space before it ("page(opens…").
+
 ---
 
 ## Open questions (ours, decided during the scope)
@@ -1399,6 +1417,22 @@ Moved out of the current scope on 2026-10-20. Revisit after milestones 4, 5 and 
 - Sending to any user needs a verified Resend domain (M4 is development only, see manager question 4).
 - Alerts (M5): "Recent alerts" page for users, deleting old articles, a language setting per user
   (alert emails and fetched articles are English), `Source` table (with milestone 8).
+
+**From the code review** (wrap-up, 2026-10-20: edge cases, see [Wrap-up](#wrap-up-code-review-fixes))
+
+- **Two Slack channels at once:** two `POST /api/channels` at the same moment (double submit, two tabs) can both
+  pass the "one Slack channel per user" check, because the Slack call sits between the check and the insert. The
+  button is disabled while saving, so we accepted it in M7. Fix: a partial unique index on `(userId, type)
+WHERE type = 'slack'` (migration with raw SQL), and 409 on the unique error.
+- **Rejected webhook URLs on `POST /api/channels` have no limit:** each one is a request to Slack. Belongs to the
+  rate limiting of milestone 10.
+- **A stored config that no longer passes a stricter schema** (e.g. a shorter name limit later) makes
+  `GET /api/channels` answer 500 for that user, and `PATCH` can't fix it. Fix when we change those rules: read
+  stored configs with `safeParse` and a fallback (e.g. show the type instead of the name).
+- **Slack formatting characters in titles:** `*`, `_`, `~` and backticks in an article title can change its Slack
+  formatting (Slack has no escape for them). Cosmetic only. Possible fix: no bold around the title link.
+- **An extra query when connecting Slack:** `create()` loads the user's email and name only because
+  `ChannelTarget` requires them; Slack doesn't use them. Make `user` optional or load it only for email.
 
 ## Questions for the manager
 

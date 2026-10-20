@@ -75,3 +75,9 @@
 .connectSlack {
   margin: spacing(1) spacing(1.75) 0; // lines up with the helper text above it
 }
+
+// The "opens in a new tab" icon after the "Connect Slack" link
+.linkIcon {
+  margin-left: spacing(0.5);
+  vertical-align: middle;
+}

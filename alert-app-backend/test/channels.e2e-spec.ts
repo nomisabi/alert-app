@@ -312,12 +312,28 @@ describe('Channels (e2e)', () => {
       );
     });
 
-    it('answers 502 when Slack refuses the test message later (e.g. the webhook was removed)', async () => {
+    it('asks for a new URL when Slack refuses the saved webhook later (400, e.g. it was removed)', async () => {
       const logError = vi.spyOn(Logger.prototype, 'error').mockImplementation(() => {});
       const user = await signUp('removed');
       const slack = (await connect(user, 'removed').expect(201)).body as Channel;
       await prisma.channel.update({ where: { id: slack.id }, data: { lastTestSentAt: null } });
       fakeSlack.post.mockRejectedValue(new PermanentSendError('Slack: 404 no_service'));
+
+      // Not 502 "try again later": that would never help
+      await user.post(`/api/channels/${slack.id}/test`).expect(400, {
+        code: 'SLACK_WEBHOOK_REMOVED',
+        message:
+          "Slack didn't accept the message. The webhook may have been removed in Slack: edit the Slack channel and paste a new webhook URL.",
+      });
+      logError.mockRestore();
+    });
+
+    it('answers 502 when Slack fails for a while (e.g. 503)', async () => {
+      const logError = vi.spyOn(Logger.prototype, 'error').mockImplementation(() => {});
+      const user = await signUp('testdown');
+      const slack = (await connect(user, 'testdown').expect(201)).body as Channel;
+      await prisma.channel.update({ where: { id: slack.id }, data: { lastTestSentAt: null } });
+      fakeSlack.post.mockRejectedValue(new Error('Slack: 503'));
 
       const response = await user.post(`/api/channels/${slack.id}/test`).expect(502);
       expect((response.body as { code: string }).code).toBe('CHANNEL_TEST_FAILED');
@@ -355,8 +371,16 @@ describe('Channels (e2e)', () => {
           .expect(201)
       ).body as Channel;
       fakeSlack.post.mockClear();
+      // Connecting counted as a test message: move it a minute back, so a new URL is allowed
+      await allowNextTest(slack.id);
       return { user, slack };
     }
+
+    const allowNextTest = (id: string) =>
+      prisma.channel.update({
+        where: { id },
+        data: { lastTestSentAt: subSeconds(new Date(), CHANNEL_TEST_COOLDOWN_SECONDS) },
+      });
 
     it('changes only the name without contacting Slack', async () => {
       const { user, slack } = await connectedUser('rename');
@@ -390,6 +414,39 @@ describe('Channels (e2e)', () => {
         name: '#news',
         webhookUrl: webhookUrlFor('newurl2'),
       });
+    });
+
+    it('allows one new URL per minute, like "Send test message" (429), even when Slack refused it', async () => {
+      const logWarn = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
+      const { user, slack } = await connectedUser('urllimit');
+      fakeSlack.post.mockRejectedValueOnce(new PermanentSendError('Slack: 404 no_service'));
+      await user
+        .patch(`/api/channels/${slack.id}`)
+        .send({ webhookUrl: webhookUrlFor('urllimit2') })
+        .expect(400);
+
+      // Switching URLs again right away doesn't reach Slack
+      const response = await user
+        .patch(`/api/channels/${slack.id}`)
+        .send({ webhookUrl: webhookUrlFor('urllimit3') })
+        .expect(429);
+      expect((response.body as { code: string }).code).toBe('CHANNEL_TEST_TOO_SOON');
+      expect(response.headers['retry-after']).toBeDefined();
+      expect(fakeSlack.post).toHaveBeenCalledOnce();
+
+      // A new name alone is still fine (it doesn't contact Slack)
+      await user.patch(`/api/channels/${slack.id}`).send({ name: '#later' }).expect(200);
+
+      await allowNextTest(slack.id);
+      await user
+        .patch(`/api/channels/${slack.id}`)
+        .send({ webhookUrl: webhookUrlFor('urllimit3') })
+        .expect(200);
+      expect(await storedConfig(slack.id)).toEqual({
+        name: '#later',
+        webhookUrl: webhookUrlFor('urllimit3'),
+      });
+      logWarn.mockRestore();
     });
 
     it('keeps the old settings when Slack refuses the new URL', async () => {

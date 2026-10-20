@@ -1,6 +1,6 @@
 # Alert App: Plan Summary
 
-Last updated: 2026-10-20 (milestone 7 done: the current scope is finished, next: questions for the manager)
+Last updated: 2026-10-20 (wrap-up: code review fixes on branch `wrap-up`; README rewritten for the reviewer with screenshots; next: the developer's summary in the README)
 
 The short version of [PROJECT_PLAN.md](PROJECT_PLAN.md): only what is needed to build the current scope.
 PROJECT_PLAN.md stays the full record (all decisions, the reasons, every finished milestone's steps). Read a section
@@ -113,10 +113,13 @@ Details: [Milestone 5 steps](PROJECT_PLAN.md#milestone-5-steps-first-real-alerts
   - `POST /api/channels` (`{ type: 'slack', name, webhookUrl }` → 201 `Channel`) sends the test message first:
     Slack 4xx → 400 `SLACK_WEBHOOK_INVALID` (nothing saved), Slack down → 502, already connected → 409
     `SLACK_ALREADY_CONNECTED`. `PATCH /api/channels/:id` (`{ name?, webhookUrl? }`): a new URL gets the test
-    message first; in the form the URL starts empty (= keep). Email can't be edited (400 `CHANNEL_NOT_EDITABLE`).
+    message first and counts as a test (1 per minute, 429); in the form the URL starts empty (= keep). Email
+    can't be edited (400 `CHANNEL_NOT_EDITABLE`). "Send test message" to a webhook Slack refuses → 400
+    `SLACK_WEBHOOK_REMOVED` (edit it), not 502.
   - `config` = `{ name, webhookUrl }` (`slackChannelConfigSchema`), `destination` = name.
   - **The webhook URL is a secret:** never returned by the API, never logged.
   - Block Kit messages (+ `text` fallback), **15 articles + "and N more"**. 4xx except 429 → `PermanentSendError`.
+    A section stays under Slack's 3,000 characters (a too-long article link is dropped, the title stays).
   - `SlackWebhookClient` (fetch / log), `SLACK_ENABLED=false` in `setup-e2e.ts`.
   - **No deleting channels** in this scope (TODO: 409 while any rule uses it).
   - Step 4a starts with a manual step: the developer creates a test Slack workspace + app + webhook.

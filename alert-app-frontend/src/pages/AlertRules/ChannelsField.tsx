@@ -1,3 +1,4 @@
+import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import {
   Checkbox,
   FormControl,
@@ -18,7 +19,7 @@ import styles from './AlertRulesPage.module.scss';
 
 /**
  * "Send to": one checkbox per channel of the user. At least one must be ticked.
- * Without Slack, a link to the Channels page says it can be connected.
+ * Without Slack, a link to the Channels page (in a new tab) says it can be connected.
  */
 export function ChannelsField({ control, channels }: ChannelsFieldProps) {
   const { t } = useTranslation(['alerts', 'channels']);
@@ -67,8 +68,12 @@ export function ChannelsField({ control, channels }: ChannelsFieldProps) {
       {!hasSlack && (
         <Typography variant="body2" color="text.secondary" className={styles.connectSlack}>
           {t('dialog.slackHint')}{' '}
-          <Link component={RouterLink} to="/channels">
+          {/* A new tab: leaving the page would close the dialog and lose what was typed. When the
+              user comes back, useChannels() reloads the channels, so Slack appears above. */}
+          <Link component={RouterLink} to="/channels" target="_blank" rel="noopener noreferrer">
             {t('dialog.connectSlack')}
+            <OpenInNewIcon fontSize="inherit" className={styles.linkIcon} aria-hidden="true" />{' '}
+            <span className={styles.visuallyHidden}>{t('channels:connect.newTab')}</span>
           </Link>
         </Typography>
       )}

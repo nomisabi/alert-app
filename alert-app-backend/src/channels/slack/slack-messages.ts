@@ -22,7 +22,9 @@ export interface SlackPayload {
 export const SLACK_ARTICLES_MAX = 15;
 /** Slack's limit for a header block. */
 const HEADER_MAX_LENGTH = 150;
-/** A section allows 3,000 characters; titles are short, but a provider could send anything. */
+/** Slack's limit for a section block's text. Longer → Slack refuses the whole message. */
+const SECTION_MAX_LENGTH = 3000;
+/** Titles are short, but a provider could send anything. */
 const TITLE_MAX_LENGTH = 250;
 
 /**
@@ -73,7 +75,6 @@ function alertMessage(
   /** "*<url|Title>*", then "Source · date" and the shortened description on their own lines. */
   const articleBlock = (article: AlertArticle): SlackBlock => {
     const text = escapeSlack(cut(article.title, TITLE_MAX_LENGTH));
-    const link = isWebLink(article.url) ? `<${linkTarget(article.url)}|${text}>` : text;
     const date = format(article.publishedAt, t('alert.dateFormat'), { in: tz('UTC') });
     const meta = article.sourceName
       ? t('alert.meta', { source: escapeSlack(article.sourceName), date })
@@ -81,7 +82,12 @@ function alertMessage(
     const description = article.description
       ? escapeSlack(shortenDescription(article.description))
       : undefined;
-    return section([`*${link}*`, meta, description].filter(Boolean).join('\n'));
+    const lines = (title: string) => [`*${title}*`, meta, description].filter(Boolean).join('\n');
+
+    const withLink = isWebLink(article.url) && lines(`<${linkTarget(article.url)}|${text}>`);
+    // A very long URL (e.g. full of tracking codes) would make Slack refuse the whole alert, so
+    // the title is shown without its link. The title and description alone always fit.
+    return section(withLink && withLink.length <= SECTION_MAX_LENGTH ? withLink : lines(text));
   };
 
   return {

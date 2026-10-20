@@ -5,7 +5,8 @@ import {
   type ApiError,
   type Channel,
 } from '@alert-app/shared';
-import { screen, waitFor, within } from '@testing-library/react';
+import { focusManager } from '@tanstack/react-query';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { subHours } from 'date-fns';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -60,7 +61,8 @@ function serve(
       return Promise.resolve({ items: APP_CATEGORIES.map((id) => ({ id })) });
     }
     if (path === '/api/channels') {
-      return Promise.resolve({ items: channels });
+      // A copy, like a real response (a test may add a channel to `channels` later)
+      return Promise.resolve({ items: [...channels] });
     }
     const id = path.split('/').at(-1);
     const changed = (rule: AlertRule, values: Record<string, unknown>): AlertRule => ({
@@ -317,15 +319,34 @@ describe('AlertRulesPage', () => {
     ]);
   });
 
-  it('links to the Channels page when Slack is not connected', async () => {
-    serve([evNews]);
+  it('links to the Channels page in a new tab, and shows Slack after coming back', async () => {
+    const user = userEvent.setup();
+    const channels = [testChannel()];
+    serve([evNews], undefined, channels);
     renderRoute('/alerts');
 
     const dialog = await openCreateDialog();
+    await user.type(within(dialog).getByRole('textbox', { name: /name/i }), 'Floods');
     expect(within(dialog).getAllByRole('checkbox')).toHaveLength(1);
+    // A new tab, so the dialog and what was typed stay
+    const link = within(dialog).getByRole('link', {
+      name: 'Connect Slack on the Channels page (opens in a new tab)',
+    });
+    expect(link).toHaveAttribute('href', '/channels');
+    expect(link).toHaveAttribute('target', '_blank');
+
+    // Slack is connected in the other tab, then the user comes back to this one
+    channels.push(testChannel({ id: 'channel-2', type: 'slack', destination: '#news in Acme' }));
+    act(() => {
+      focusManager.setFocused(false);
+      focusManager.setFocused(true);
+    });
+
     expect(
-      within(dialog).getByRole('link', { name: 'Connect Slack on the Channels page' }),
-    ).toHaveAttribute('href', '/channels');
+      await within(dialog).findByRole('checkbox', { name: /#news in Acme/ }),
+    ).toBeInTheDocument();
+    expect(within(dialog).getByRole('textbox', { name: /name/i })).toHaveValue('Floods');
+    focusManager.setFocused(undefined);
   });
 
   it('shows the Slack icon in "Sends to" for a rule that sends to Slack', async () => {

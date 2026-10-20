@@ -84,6 +84,9 @@ export class ChannelsService {
   /**
    * Edits the user's Slack channel. Only the sent fields change. A new webhook URL is saved only
    * if Slack accepts the test message; a new name alone doesn't contact Slack.
+   *
+   * A new URL counts as a test message, so the one-per-minute limit applies (429): otherwise
+   * switching between two URLs could post to Slack without limit.
    */
   async update(
     userId: string,
@@ -104,38 +107,23 @@ export class ChannelsService {
     const current = slackChannelConfigSchema.parse(row.config);
     const config = { ...current, ...request };
     const urlChanged = config.webhookUrl !== current.webhookUrl;
-    if (urlChanged)
+    if (urlChanged) {
+      // Counted before sending (like sendTest), so a URL Slack refuses also uses up the minute
+      await this.claimTestSlot(userId, channelId);
       await this.checkWithTestMessage(row.type, toTarget({ ...row, config }), language);
+    }
 
     const updated = await this.prisma.channel.update({
       where: { id: row.id },
-      data: { config, ...(urlChanged && { lastTestSentAt: new Date() }) },
+      data: { config },
       include: withUser,
     });
     return this.toChannel(updated);
   }
 
-  /**
-   * Sends a test message, at most one per channel per minute.
-   *
-   * The time is saved *before* sending, in one "update if the last test is old enough" query.
-   * The database runs that query as one step (atomic), so two clicks at the same moment can't
-   * both pass the check. A failed send also counts, so a broken setup can't use up the quota.
-   */
+  /** Sends a test message, at most one per channel per minute (see claimTestSlot). */
   async sendTest(userId: string, channelId: string, language: Language): Promise<void> {
-    const now = new Date();
-    const { count } = await this.prisma.channel.updateMany({
-      where: {
-        id: channelId,
-        userId,
-        OR: [
-          { lastTestSentAt: null },
-          { lastTestSentAt: { lte: subSeconds(now, CHANNEL_TEST_COOLDOWN_SECONDS) } },
-        ],
-      },
-      data: { lastTestSentAt: now },
-    });
-    if (count === 0) await this.throwNotFoundOrTooSoon(userId, channelId, now);
+    await this.claimTestSlot(userId, channelId);
 
     const row = await this.prisma.channel.findFirstOrThrow({
       where: { id: channelId, userId },
@@ -146,6 +134,11 @@ export class ChannelsService {
     } catch (error) {
       // The details (e.g. Resend's error) only go to the log, the user gets a general text
       this.logger.error(`Test message for channel ${channelId} failed`, error);
+      // Slack refusing a saved webhook (removed in Slack, or its channel archived): "try again
+      // later" would never help, the user has to paste a new URL in "Edit"
+      if (error instanceof PermanentSendError && row.type === 'slack') {
+        throw new ApiException(HttpStatus.BAD_REQUEST, 'SLACK_WEBHOOK_REMOVED');
+      }
       throw new ApiException(HttpStatus.BAD_GATEWAY, 'CHANNEL_TEST_FAILED');
     }
   }
@@ -202,6 +195,29 @@ export class ChannelsService {
       }
       throw new ApiException(HttpStatus.BAD_GATEWAY, 'CHANNEL_TEST_FAILED');
     }
+  }
+
+  /**
+   * Allows one test message per channel per minute: saves the time, or throws 404/429.
+   *
+   * The time is saved *before* sending, in one "update if the last test is old enough" query.
+   * The database runs that query as one step (atomic), so two clicks at the same moment can't
+   * both pass the check. A failed send also counts, so a broken setup can't use up the quota.
+   */
+  private async claimTestSlot(userId: string, channelId: string): Promise<void> {
+    const now = new Date();
+    const { count } = await this.prisma.channel.updateMany({
+      where: {
+        id: channelId,
+        userId,
+        OR: [
+          { lastTestSentAt: null },
+          { lastTestSentAt: { lte: subSeconds(now, CHANNEL_TEST_COOLDOWN_SECONDS) } },
+        ],
+      },
+      data: { lastTestSentAt: now },
+    });
+    if (count === 0) await this.throwNotFoundOrTooSoon(userId, channelId, now);
   }
 
   /** The channel doesn't exist for this user (404), or its last test is too recent (429). */

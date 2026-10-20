@@ -96,6 +96,10 @@ export class ChannelsController {
   @ApiNotFoundResponse({
     description: "CHANNEL_NOT_FOUND: no such channel, or it's another user's",
   })
+  @ApiTooManyRequestsResponse({
+    description:
+      'CHANNEL_TEST_TOO_SOON: a new webhook URL counts as a test message (one per minute, see Retry-After)',
+  })
   @ApiBadGatewayResponse({ description: 'CHANNEL_TEST_FAILED: Slack failed or did not answer' })
   update(
     @Req() request: AuthenticatedRequest,
@@ -119,6 +123,9 @@ export class ChannelsController {
     summary: 'Send a test message (one per channel per minute)',
   })
   @ApiNoContentResponse({ description: 'Sent' })
+  @ApiBadRequestResponse({
+    description: 'SLACK_WEBHOOK_REMOVED: Slack refused the saved webhook (edit it to fix)',
+  })
   @ApiNotFoundResponse({
     description: "CHANNEL_NOT_FOUND: no such channel, or it's another user's",
   })

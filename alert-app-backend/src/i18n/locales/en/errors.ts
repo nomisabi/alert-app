@@ -35,6 +35,9 @@ export const errorsEn = {
   // Also the field error under "Webhook URL": Slack rejected the test message (4xx)
   SLACK_WEBHOOK_INVALID:
     "Slack didn't accept this webhook. Check that you copied the whole URL and that the webhook still exists.",
+  // "Send test message": Slack refuses the saved webhook (removed in Slack, or its channel archived)
+  SLACK_WEBHOOK_REMOVED:
+    "Slack didn't accept the message. The webhook may have been removed in Slack: edit the Slack channel and paste a new webhook URL.",
   NEWS_SOURCE_NOT_CONFIGURED: 'No news source is set up (NEWSDATA_API_KEY is missing).',
 
   // Better Auth

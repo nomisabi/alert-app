@@ -1,4 +1,4 @@
-import type { Channel } from '@alert-app/shared';
+import type { Channel, EditSlackChannelFormValues } from '@alert-app/shared';
 
 export interface ChannelCardProps {
   channel: Channel;
@@ -13,11 +13,11 @@ export interface SlackConnectCardProps {
   onConnect: () => void;
 }
 
-/** The "Connect Slack" / "Edit Slack" form. When editing, an empty `webhookUrl` keeps the current one. */
-export interface SlackChannelFormValues {
-  name: string;
-  webhookUrl: string;
-}
+/**
+ * The "Connect Slack" / "Edit Slack" form. When editing, an empty `webhookUrl` keeps the current one.
+ * Inferred from the shared schema (both forms have the same fields), so it can't drift from it.
+ */
+export type SlackChannelFormValues = EditSlackChannelFormValues;
 
 export interface SlackChannelDialogProps {
   open: boolean;
