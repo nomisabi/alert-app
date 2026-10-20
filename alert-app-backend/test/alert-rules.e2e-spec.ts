@@ -120,6 +120,8 @@ describe('Alert rules (e2e)', () => {
         category: null,
         enabled: true,
         channelIds: [channelId],
+        // A new rule never sent an alert
+        lastAlertAt: null,
         createdAt: expect.any(String) as string,
         updatedAt: expect.any(String) as string,
       });
@@ -220,6 +222,40 @@ describe('Alert rules (e2e)', () => {
 
       const response = await user.get(`/api/alert-rules/${rule.id}`).expect(200);
       expect((response.body as AlertRule).category).toBe('other');
+    });
+
+    it('shows when the rule last sent an alert: the newest sent notification', async () => {
+      const user = await signUp('lastalert');
+      const rule = await createRule(user);
+      const quiet = await createRule(user, categoryRule);
+      const notification = (batchId: string, status: 'sent' | 'failed' | 'pending', at: string) =>
+        ({
+          batchId,
+          alertRuleId: rule.id,
+          channelId: rule.channelIds[0],
+          status,
+          sentAt: status === 'sent' ? new Date(at) : null,
+          createdAt: new Date(at),
+        }) as const;
+      await prisma.notification.createMany({
+        data: [
+          notification('older', 'sent', '2026-10-20T08:00:00Z'),
+          notification('newest-sent', 'sent', '2026-10-20T10:00:00Z'),
+          // Newer, but not sent: they don't count
+          notification('failed', 'failed', '2026-10-20T11:00:00Z'),
+          notification('pending', 'pending', '2026-10-20T12:00:00Z'),
+        ],
+      });
+
+      const { items } = (await user.get('/api/alert-rules').expect(200)).body as AlertRuleList;
+
+      expect(items.find((item) => item.id === rule.id)?.lastAlertAt).toBe(
+        '2026-10-20T10:00:00.000Z',
+      );
+      expect(items.find((item) => item.id === quiet.id)?.lastAlertAt).toBeNull();
+      // Also on a single rule
+      const single = (await user.get(`/api/alert-rules/${rule.id}`).expect(200)).body as AlertRule;
+      expect(single.lastAlertAt).toBe('2026-10-20T10:00:00.000Z');
     });
   });
 

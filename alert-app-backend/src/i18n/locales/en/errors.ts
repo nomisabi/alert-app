@@ -29,6 +29,7 @@ export const errorsEn = {
   CHANNEL_TEST_FAILED: "We couldn't send the test message. Please try again later.",
   // Also the field error under "Send to" (a channel that doesn't exist or isn't the user's)
   INVALID_CHANNEL: 'Choose one of your channels.',
+  NEWS_SOURCE_NOT_CONFIGURED: 'No news source is set up (NEWSDATA_API_KEY is missing).',
 
   // Better Auth
   INVALID_EMAIL_OR_PASSWORD: 'Invalid email or password.',

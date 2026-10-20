@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { z } from 'zod';
 import { EmailProvider } from '../../email/email-provider.js';
+import { alertEmail } from '../../email/templates/alert.js';
 import { testMessageEmail } from '../../email/templates/test-message.js';
 import type { Language } from '../../i18n/i18n.js';
 import type {
@@ -34,6 +35,8 @@ export class EmailChannel implements NotificationChannel {
     switch (message.kind) {
       case 'test':
         return this.email.send(testMessageEmail({ language, to: email, name }));
+      case 'alert':
+        return this.email.send(alertEmail({ language, to: email, name, ...message }));
     }
   }
 }

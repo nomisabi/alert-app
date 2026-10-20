@@ -24,6 +24,7 @@ import type {
 import type {
   AdminUser,
   AdminUserList,
+  FetchNewsResponse,
   GetAdminUsersParams,
   UpdateAdminUserRequest,
 } from '../model';
@@ -289,4 +290,59 @@ export const useUpdateAdminUser = <TError = ErrorType<void>, TContext = unknown>
   TContext
 > => {
   return useMutation(getUpdateAdminUserMutationOptions(options), queryClient);
+};
+export const getFetchNewsNowUrl = () => {
+  return `/api/admin/news-sources/fetch`;
+};
+
+/**
+ * @summary Fetch news now (for development). Repeats the batchId while a fetch is queued.
+ */
+export const fetchNewsNow = async (
+  options?: Parameters<typeof orvalFetch>[1],
+): Promise<FetchNewsResponse> => {
+  return orvalFetch<FetchNewsResponse>(getFetchNewsNowUrl(), {
+    ...options,
+    method: 'POST',
+  });
+};
+
+export const getFetchNewsNowMutationKey = () => ['fetchNewsNow'] as const;
+
+export const getFetchNewsNowMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<Awaited<ReturnType<typeof fetchNewsNow>>, TError, void, TContext>;
+  request?: SecondParameter<typeof orvalFetch>;
+}): UseMutationOptions<Awaited<ReturnType<typeof fetchNewsNow>>, TError, void, TContext> => {
+  const mutationKey = getFetchNewsNowMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<Awaited<ReturnType<typeof fetchNewsNow>>, void> = () => {
+    return fetchNewsNow(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type FetchNewsNowMutationResult = NonNullable<Awaited<ReturnType<typeof fetchNewsNow>>>;
+
+export type FetchNewsNowMutationError = ErrorType<void>;
+
+/**
+ * @summary Fetch news now (for development). Repeats the batchId while a fetch is queued.
+ */
+export const useFetchNewsNow = <TError = ErrorType<void>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<Awaited<ReturnType<typeof fetchNewsNow>>, TError, void, TContext>;
+    request?: SecondParameter<typeof orvalFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<Awaited<ReturnType<typeof fetchNewsNow>>, TError, void, TContext> => {
+  return useMutation(getFetchNewsNowMutationOptions(options), queryClient);
 };

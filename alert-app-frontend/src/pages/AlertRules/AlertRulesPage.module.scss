@@ -29,6 +29,11 @@
   color: var(--mui-palette-text-secondary);
 }
 
+// "Last alert": "No alert sent yet" for screen readers, instead of the "-"
+.visuallyHidden {
+  @include visually-hidden;
+}
+
 .actions {
   display: inline-flex;
   white-space: nowrap;

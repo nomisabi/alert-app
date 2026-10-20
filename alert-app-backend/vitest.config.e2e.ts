@@ -6,5 +6,7 @@ export default defineConfig({
     globals: true,
     root: './',
     include: ['test/**/*.e2e-spec.ts'],
+    // No real news fetches, own queues per test file (see the file)
+    setupFiles: ['./test/setup-e2e.ts'],
   },
 });

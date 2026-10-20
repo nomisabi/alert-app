@@ -6,6 +6,7 @@ import {
 } from '@alert-app/shared';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { subHours } from 'date-fns';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiRequestError, orvalFetch } from '../../global/utils/apiFetch';
 import { getSession } from '../../global/utils/authApi';
@@ -127,6 +128,22 @@ describe('AlertRulesPage', () => {
     const sportsCard = screen.getByRole('heading', { name: 'Sports news' }).closest('li')!;
     expect(within(sportsCard).getByText('Sports')).toBeInTheDocument();
     expect(within(sportsCard).getByRole('switch')).not.toBeChecked();
+  });
+
+  it('shows when each rule last sent an alert, "-" when it never did', async () => {
+    serve([{ ...evNews, lastAlertAt: subHours(new Date(), 2).toISOString() }, sports]);
+    renderRoute('/alerts');
+
+    const evCard = (await screen.findByRole('heading', { name: 'EV news' })).closest('li')!;
+    const lastAlert = within(evCard).getByText('about 2 hours ago');
+    expect(lastAlert.tagName).toBe('TIME');
+    // The exact date and time is in the tooltip
+    await userEvent.hover(lastAlert);
+    expect(await screen.findByRole('tooltip')).toHaveTextContent(/^[A-Z][a-z]{2} \d+, \d{4}/);
+
+    const sportsCard = screen.getByRole('heading', { name: 'Sports news' }).closest('li')!;
+    expect(within(sportsCard).getByText('-')).toHaveAttribute('aria-hidden', 'true');
+    expect(within(sportsCard).getByText('No alert sent yet')).toBeInTheDocument();
   });
 
   it('shows the empty state, whose button opens the dialog', async () => {

@@ -57,6 +57,7 @@ export function testAlertRule(changes: Partial<AlertRule> = {}): AlertRule {
     category: null,
     enabled: true,
     channelIds: ['channel-1'],
+    lastAlertAt: null,
     createdAt: '2026-10-20T09:00:00.000Z',
     updatedAt: '2026-10-20T09:00:00.000Z',
     ...changes,

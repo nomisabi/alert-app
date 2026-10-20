@@ -10,11 +10,13 @@
       "name": "Name",
       "findsBy": "Finds news by",
       "channels": "Sends to",
+      "lastAlert": "Last alert",
       "enabled": "On",
       "actions": "Actions"
     },
     "allKeywords": "All of:",
     "category": "Category:",
+    "noAlertYet": "No alert sent yet",
     "toggle": "Send alerts for {{name}}",
     "edit": "Edit {{name}}",
     "delete": "Delete {{name}}",

@@ -1,5 +1,5 @@
 import { tz } from '@date-fns/tz';
-import { format, type Locale } from 'date-fns';
+import { format, formatDistanceToNow, type Locale } from 'date-fns';
 import { enUS } from 'date-fns/locale';
 import i18n from '../../i18n';
 
@@ -22,4 +22,9 @@ export function formatDate(date: Date | number | string, pattern = 'PP', timeZon
     locale: getDateLocale(),
     in: timeZone ? tz(timeZone) : undefined,
   });
+}
+
+/** How long ago a date was, in the current UI language, e.g. "about 2 hours ago". */
+export function formatTimeAgo(date: Date | number | string) {
+  return formatDistanceToNow(date, { addSuffix: true, locale: getDateLocale() });
 }

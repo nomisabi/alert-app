@@ -32,12 +32,7 @@
 
 // Visually hidden below sm (screen readers still read it), visible from sm up
 .brandText {
-  position: absolute;
-  overflow: hidden;
-  width: 1px;
-  height: 1px;
-  clip-path: inset(50%);
-  white-space: nowrap;
+  @include visually-hidden;
 
   @include up(sm) {
     position: static;

@@ -22,7 +22,6 @@ import { useNotify } from '../../global/hooks/useNotify';
 import { getAlertRuleColumns } from '../../utils/alert-rules/alertRuleColumns';
 import { AlertRuleDialog } from './AlertRuleDialog';
 import styles from './AlertRulesPage.module.scss';
-
 export function AlertRulesPage() {
   const { t } = useTranslation(['alerts', 'common', 'channels']);
   const notify = useNotify();

@@ -117,23 +117,24 @@ enum AlertRuleType {
 }
 
 model AlertRule {
-  id        String             @id @default(uuid(7))
-  userId    String
-  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name      String
-  type      AlertRuleType
+  id            String             @id @default(uuid(7))
+  userId        String
+  user          User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name          String
+  type          AlertRuleType
   // 1–10 keywords as the user typed them (trimmed). ALL of them must appear in the article
   // (AND). Matching ignores case, so no lowercase copy is stored.
-  keywords  String[]           @default([])
+  keywords      String[]           @default([])
   // One of APP_CATEGORIES (packages/shared). Plain text, checked by the shared Zod schema,
   // so changing the category list needs no migration.
-  category  String?
+  category      String?
   // Switched-off rules are kept but never matched.
-  enabled   Boolean            @default(true)
-  createdAt DateTime           @default(now())
-  updatedAt DateTime           @updatedAt
+  enabled       Boolean            @default(true)
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
   // Where matches are sent. At least one (checked by the shared Zod schema and the service).
-  channels  AlertRuleChannel[]
+  channels      AlertRuleChannel[]
+  notifications Notification[]
 
   @@index([userId])
   @@map("alert_rule")
@@ -163,6 +164,7 @@ model Channel {
   createdAt      DateTime           @default(now())
   updatedAt      DateTime           @updatedAt
   alertRules     AlertRuleChannel[]
+  notifications  Notification[]
 
   @@index([userId])
   @@map("channel")
@@ -181,4 +183,82 @@ model AlertRuleChannel {
   @@id([alertRuleId, channelId])
   @@index([channelId])
   @@map("alert_rule_channel")
+}
+
+// ---------------------------------------------------------------------------
+// Alerts (milestone 5)
+// ---------------------------------------------------------------------------
+
+// One news article from a source, saved once. Sources overlap, so the URL is unique: the same
+// story from a second source (or a second fetch) is skipped and never matched twice.
+model Article {
+  id            String                @id @default(uuid(7))
+  // Which NewsSourceAdapter fetched it, e.g. "newsdata". Plain text: no Source table yet (milestone 8).
+  sourceId      String
+  // The provider's own id (NewsData.io: article_id)
+  externalId    String
+  url           String                @unique
+  title         String
+  description   String?
+  imageUrl      String?
+  // The publisher, e.g. "Ciodive" (shown in the alert email)
+  sourceName    String?
+  publishedAt   DateTime
+  // Our APP_CATEGORIES, already mapped from the provider's (at least one, "other" if unknown)
+  categories    String[]
+  // e.g. "en". Only English is fetched for now.
+  language      String?
+  // When WE saved it (the provider's publishedAt can be hours older). A rule only matches
+  // articles created after the rule itself, so a new rule doesn't send old news.
+  createdAt     DateTime              @default(now())
+  notifications NotificationArticle[]
+
+  @@unique([sourceId, externalId])
+  @@map("article")
+}
+
+enum NotificationStatus {
+  pending
+  sent
+  failed
+}
+
+// One message to one channel: all new matches of a rule from one fetch together (so a busy
+// category rule sends one email per fetch, not one per article).
+model Notification {
+  id          String                @id @default(uuid(7))
+  alertRuleId String
+  alertRule   AlertRule             @relation(fields: [alertRuleId], references: [id], onDelete: Cascade)
+  channelId   String
+  channel     Channel               @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  // The fetch (ingest job) that found the articles. With the unique key below, a match job that
+  // runs twice (a retry after a crash) can't create the same message twice.
+  batchId     String
+  status      NotificationStatus    @default(pending)
+  // Send attempts so far (the notify job tries 3 times, waiting longer each time)
+  attempts    Int                   @default(0)
+  // The last error, for the backend log and the admin notification log (milestone 8)
+  error       String?
+  sentAt      DateTime?
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+  articles    NotificationArticle[]
+
+  @@unique([batchId, alertRuleId, channelId])
+  // "When did this rule last send?" (the alerts list) reads the newest sentAt per rule
+  @@index([alertRuleId, sentAt])
+  @@index([channelId])
+  @@map("notification")
+}
+
+// Join table: which articles are in a message (many-to-many, like AlertRuleChannel)
+model NotificationArticle {
+  notificationId String
+  notification   Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  articleId      String
+  article        Article      @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@id([notificationId, articleId])
+  @@index([articleId])
+  @@map("notification_article")
 }

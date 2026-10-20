@@ -9,6 +9,7 @@ import { CHANNELS_PER_RULE_MAX } from '../constants/channels.js';
 import { validationMessagesEn } from '../i18n/validation.en.js';
 import {
   alertRuleFormSchema,
+  alertRuleSchema,
   createAlertRuleRequestSchema,
   updateAlertRuleRequestSchema,
 } from './alert-rules.js';
@@ -40,6 +41,28 @@ function errorKeys(schema: z.ZodType, input: unknown): Record<string, string[]> 
 
 const createErrors = (input: unknown) => errorKeys(createAlertRuleRequestSchema, input);
 const updateErrors = (input: unknown) => errorKeys(updateAlertRuleRequestSchema, input);
+
+describe('alertRuleSchema', () => {
+  const rule = {
+    id: 'rule-1',
+    name: 'Sports',
+    type: 'category',
+    keywords: [],
+    category: 'sports',
+    enabled: true,
+    channelIds,
+    createdAt: '2026-10-20T08:00:00.000Z',
+    updatedAt: '2026-10-20T08:00:00.000Z',
+  };
+
+  it('has lastAlertAt: a date, or null when the rule never sent an alert', () => {
+    expect(alertRuleSchema.safeParse({ ...rule, lastAlertAt: null }).success).toBe(true);
+    expect(
+      alertRuleSchema.safeParse({ ...rule, lastAlertAt: '2026-10-20T10:00:00.000Z' }).success,
+    ).toBe(true);
+    expect(alertRuleSchema.safeParse(rule).success).toBe(false);
+  });
+});
 
 describe('createAlertRuleRequestSchema', () => {
   it('accepts a keyword rule: trims, keeps phrases, drops the other type’s field', () => {

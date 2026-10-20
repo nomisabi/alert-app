@@ -1,7 +1,10 @@
 import { APP_CATEGORIES } from '@alert-app/shared';
 import {
   NEWSDATA_CATEGORIES,
+  NEWSDATA_IGNORED_CATEGORIES,
   NEWSDATA_MAX_CATEGORIES_PER_REQUEST,
+  newsDataRequestCategories,
+  toAppCategories,
   toAppCategory,
 } from './newsdata-categories.js';
 
@@ -27,24 +30,18 @@ const ALL_NEWSDATA_CATEGORIES = [
 ];
 
 describe('NewsData.io category mapping', () => {
-  it('maps every NewsData.io category to exactly one of ours', () => {
-    const mapped = Object.values(NEWSDATA_CATEGORIES).flat();
+  it('maps or ignores every NewsData.io category, each exactly once', () => {
+    const handled = [...Object.values(NEWSDATA_CATEGORIES).flat(), ...NEWSDATA_IGNORED_CATEGORIES];
 
-    expect([...mapped].sort()).toEqual(ALL_NEWSDATA_CATEGORIES);
+    expect(handled.sort()).toEqual(ALL_NEWSDATA_CATEGORIES);
   });
 
   it('has an entry for each of our categories', () => {
     expect(Object.keys(NEWSDATA_CATEGORIES).sort()).toEqual([...APP_CATEGORIES].sort());
   });
 
-  it('can fetch every category of ours in requests of at most 5 NewsData.io categories', () => {
-    // "other" has 7, so it needs 2 requests: the adapter must split it (milestone 5)
-    const largest = Math.max(...Object.values(NEWSDATA_CATEGORIES).map((list) => list.length));
-    expect(Math.ceil(largest / NEWSDATA_MAX_CATEGORIES_PER_REQUEST)).toBe(2);
-  });
-
   it('maps NewsData.io categories back to ours', () => {
-    expect(toAppCategory('top')).toBe('world');
+    expect(toAppCategory('world')).toBe('world');
     expect(toAppCategory('domestic')).toBe('politics');
     expect(toAppCategory('technology')).toBe('technology');
     expect(toAppCategory('tourism')).toBe('other');
@@ -53,5 +50,42 @@ describe('NewsData.io category mapping', () => {
   it('ignores case and puts unknown categories into "other"', () => {
     expect(toAppCategory('Sports')).toBe('sports');
     expect(toAppCategory('space')).toBe('other');
+  });
+});
+
+describe('toAppCategories', () => {
+  it('ignores "top" next to a real category', () => {
+    expect(toAppCategories(['technology', 'top'])).toEqual(['technology']);
+    expect(toAppCategories(['TOP', 'sports'])).toEqual(['sports']);
+  });
+
+  it('gives "other" when nothing usable is left', () => {
+    expect(toAppCategories(['top'])).toEqual(['other']);
+    expect(toAppCategories([])).toEqual(['other']);
+  });
+
+  it('removes duplicates', () => {
+    expect(toAppCategories(['politics', 'domestic', 'business'])).toEqual(['politics', 'business']);
+  });
+});
+
+describe('newsDataRequestCategories', () => {
+  it('makes 10 requests per fetch: one per category of ours, two for "other"', () => {
+    const requests = newsDataRequestCategories();
+
+    expect(requests).toHaveLength(10);
+    expect(requests).toContainEqual(['world']);
+    expect(requests).toContainEqual(['politics', 'domestic']);
+    expect(requests).toContainEqual(['crime', 'education', 'entertainment', 'food', 'lifestyle']);
+    expect(requests).toContainEqual(['tourism', 'other']);
+  });
+
+  it('never asks for more than 5 categories, and never for "top"', () => {
+    const requests = newsDataRequestCategories();
+
+    expect(requests.every((request) => request.length <= NEWSDATA_MAX_CATEGORIES_PER_REQUEST)).toBe(
+      true,
+    );
+    expect(requests.flat()).not.toContain('top');
   });
 });

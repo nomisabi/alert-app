@@ -1,6 +1,6 @@
 # Alert App: Project Plan
 
-Last updated: 2026-10-20 (milestone 4 done: email channel; scope: milestones 4, 5 and 7)
+Last updated: 2026-10-20 (milestone 5 done: first real alerts; next: milestone 7; Bull Board first in TODO)
 
 This document holds everything we have decided so far, and why. The full discussion is in
 [docs/claude-conversations/](claude-conversations/). The short version for the current scope is
@@ -59,11 +59,12 @@ Free news APIs we compared (October 2026; third-party sources disagreed on some 
 
 - **No free tier gives true "breaking news" speed** (delays of up to 12–24h). Moving to a paid plan
   should only mean changing an API key, not code.
-- **Every source is an adapter** (`NewsSourceAdapter.fetchLatest(since)`) that converts provider data into one
+- **Every source is an adapter** (`NewsSourceAdapter.fetchLatest()`) that converts provider data into one
   `NormalizedArticle` type (externalId, sourceId, title, description, url, imageUrl, publishedAt, categories,
-  language, country). Adding a source = one adapter + one category mapping.
+  language). Adding a source = one adapter + one category mapping. (Country was dropped in milestone 5: not needed
+  yet, easy to add later.)
 - **We use our own category list** (`AppCategory` in `@alert-app/shared`), and each provider's categories are
-  mapped to it (e.g. NewsData's `top` → `world`). Users never see provider-specific names.
+  mapped to it (e.g. NewsData's `domestic` → `politics`). Users never see provider-specific names.
   Final list (milestone 3): world, politics, business, technology, science, health, sports, environment, other
   (other = every provider category we don't map elsewhere).
 - Articles are **de-duplicated by URL**, because sources overlap.
@@ -346,7 +347,9 @@ meant deciding too much before seeing anything work.
    keyboard, focus, contrast).
 4. **Backend:** modules, services, controllers, migrations.
 5. **Connect:** the frontend calls the real backend. Click through the whole feature.
-6. **Tests**
+6. **Tests.** **From milestone 5 on (decided 2026-10-20), tests are written together with the code** in steps 3–5
+   (each part comes with its tests). Step 6 only fills the gaps and checks that some tests really fail without
+   their feature.
 7. **Wrap-up:** `npm run format`, update this plan, review by the developer, commit by the developer.
 
 A milestone is not finished until it works against the real backend. Because the backend is built before the
@@ -367,8 +370,8 @@ stay the same, so older notes still match.
 | 2   | Admin: users                 | List users, enable/disable, change role                                                  | Done (commit) |
 | 3   | Alert rules                  | Create, edit, delete, list own rules. Final category list + NewsData.io mapping          | Done (commit) |
 | 4   | Email channel                | Connect an email address, send a test message (Resend)                                   | Done (branch) |
-| 5   | First real alerts            | NewsData.io → matcher → instant email (BullMQ)                                           | **Next**      |
-| 7   | Slack                        | Slack channel through `NotificationChannel`                                              | In scope      |
+| 5   | First real alerts            | NewsData.io → matcher → instant email (BullMQ)                                           | Done (branch) |
+| 7   | Slack                        | Slack channel through `NotificationChannel`                                              | **Next**      |
 | 6   | Digests                      | Hourly and daily delivery, time zone setting                                             | TODO          |
 | 8   | Admin: rules, sources, log   | All rules, source status and settings, notification log                                  | TODO          |
 | 9   | Email verification and reset | Email verification, password reset                                                       | TODO          |
@@ -646,7 +649,7 @@ client / Orval setup. Later milestones: empty state (3), confirm dialog (3), dat
 
   | Our category | NewsData.io                                                                    |
   | ------------ | ------------------------------------------------------------------------------ |
-  | world        | `world`, `top`                                                                 |
+  | world        | `world` (`top` was here until milestone 5, now ignored: see 4a)                |
   | politics     | `politics`, `domestic`                                                         |
   | business     | `business`                                                                     |
   | technology   | `technology`                                                                   |
@@ -806,7 +809,7 @@ Branch: `milestone-4-email-channel`.
 - **Plain HTML templates** (decided with the developer, because of the time). React Email is in the TODO list.
 - **No verified domain** (development only): Resend's test sender `onboarding@resend.dev` only delivers to the
   Resend account owner's email. Other addresses get a 403 from Resend. Real delivery needs a domain (manager
-  question 3).
+  question 4).
 
 **Scope: left out**
 
@@ -935,19 +938,289 @@ message, language)`. The message is channel-independent (`{ kind: 'test' }`; mil
       `docs/claude-conversations/4-email-channel_*`, review by the developer, commit by the developer (on
       `milestone-4-email-channel`).
 
+### Milestone 5 steps (first real alerts)
+
+Branch: `milestone-5-first-real-alerts`.
+
+**Scope: included**
+
+- **Pipeline (BullMQ):** a job scheduler adds an `ingest` job every **2 hours** → `ingest` fetches and saves new
+  articles → `match` checks the new articles against all enabled rules → `notify` sends to the rule's channels
+  (3 attempts with exponential backoff, result saved).
+- **`NewsDataAdapter`** (implements `NewsSourceAdapter`): one request per category of ours, two for `other` (it has
+  7 NewsData.io categories, max 5 per request), so **10 requests per poll**. Returns `NormalizedArticle`s.
+  **English articles only** (`language=en`). No `NEWSDATA_API_KEY` → fetching is off, with a warning in the log (like
+  `LogEmailProvider`).
+- **Poll interval: every 2 hours** (decided with the developer) = **120 requests/day** of the ~200 free, leaving
+  ~80 for "fetch now", retries and testing. Set by an environment variable (default 120 minutes). Every 90 minutes
+  (160/day) left too little room; combined requests (5 categories in one request) share only 10 articles between
+  them, so quiet categories would lose articles. The free limit is also 30 credits per 15 minutes (10 per poll is
+  fine).
+- **Matching** (as decided in milestone 3): keyword rules = all keywords, whole words, any case, in title +
+  description; category rules = the article has the rule's category. **A rule only sees articles fetched after it
+  was created**, so a new rule doesn't send old news. De-duplication by URL (unique), so an article is matched only
+  once.
+- **One message per rule per poll** (decided with the developer): all new matches of a rule from one poll go into one
+  message per channel. One message per article would let a single category rule (~10 articles per poll) use up
+  Resend's 100 emails/day.
+- **Alert email:** `ChannelMessage` gets `{ kind: 'alert', ... }` (rule name + articles), `EmailChannel` renders it
+  with a plain HTML template (title as a link, description, time). English (users have no language setting yet).
+- **Models:** `Article` and `Notification` (one row per message sent: rule, channel, its articles, status
+  `pending | sent | failed`, attempts, error). Details in step 1.
+- **Frontend: "last alert" in the alerts list** (decided with the developer): when each rule last sent an alert.
+  No separate "Recent alerts" page.
+- **"Fetch now" for development:** an admin-only `POST` endpoint that queues an ingest job immediately (no UI), so
+  we don't have to wait 2 hours while testing.
+
+**Scope: left out**
+
+- No `Source` table yet: the interval is an environment variable. Admin source settings, quota display, notification
+  log (milestone 8, TODO). Bull Board (a queue dashboard, about 1–2 hours of work: first item in the TODO list).
+  Deleting old articles. Digests (milestone 6). A language
+  setting per user. A "Recent alerts" page.
+- Still open from milestone 4: the sign-up hook isn't in the same transaction as the user, so a user could end up
+  without a channel. Not fixed here.
+
+**Steps**
+
+- [x] 0. Scope
+- [x] 1. Model: `Article`, `Notification` (+ enum `NotificationStatus`) and the join table `NotificationArticle`
+      in `prisma/schema.prisma`. Migration runs in step 4a.
+  - **`Article`**: `id` (uuid v7), `sourceId` (`"newsdata"`, plain text: no `Source` table yet), `externalId`,
+    `url` (**unique**: de-duplication), `title`, `description?`, `imageUrl?`, `publishedAt`, `categories String[]`
+    (ours, already mapped), `language?`, `createdAt`. Also unique `(sourceId, externalId)`.
+  - **No `countries`** and **`language` stays as it is** (decided with the developer): not needed now, both can be
+    extended later (e.g. a language filter per rule, manager question 2).
+  - **`createdAt` = when we saved the article**, not when it was published (the free tier can be ~12h late). "A rule
+    only matches articles fetched after it was created" compares `article.createdAt` with `rule.createdAt`.
+  - **`Notification`** = one message to one channel: `alertRuleId`, `channelId`, `batchId`, `status`
+    (`pending | sent | failed`), `attempts`, `error?`, `sentAt?`, timestamps. Its articles are in
+    **`NotificationArticle`** (`notificationId` + `articleId` as the primary key, like `AlertRuleChannel`), because one
+    message holds all of a rule's matches from one fetch.
+  - **`batchId`** = the id of the fetch (ingest job) that found the articles. Unique `(batchId, alertRuleId,
+channelId)`: if a match job runs twice (BullMQ retries a job after a crash), the second run can't create the
+    same message again.
+  - **"Last alert" is computed**, not stored on the rule: the newest `sentAt` of the rule's notifications (index
+    `(alertRuleId, sentAt)`). No copy that could get out of date.
+  - Cascade deletes: deleting a rule, channel or user removes its notifications; deleting an article (old-article
+    cleanup, TODO) removes it from messages.
+- [x] 2. API contract: `lastAlertAt` in `schemas/alert-rules.ts`, new `schemas/news-sources.ts`
+      (`fetchNewsResponseSchema`), OpenAPI schema `FetchNewsResponse` registered.
+
+  | Endpoint                             | Request | Success                               | Errors                                     |
+  | ------------------------------------ | ------- | ------------------------------------- | ------------------------------------------ |
+  | `GET/POST/PATCH /api/alert-rules`    | –       | every `AlertRule` has + `lastAlertAt` | –                                          |
+  | `POST /api/admin/news-sources/fetch` | –       | **202** `{ batchId }` (fetch queued)  | 401, 403, 503 `NEWS_SOURCE_NOT_CONFIGURED` |
+  - **`lastAlertAt`** (ISO date or `null` = never): the newest `sentAt` of the rule's **sent** notifications on any
+    channel (pending/failed don't count). Read-only, not in the create/update requests. `null` for a new rule.
+  - **"Fetch now" answers 202 Accepted**: it only queues the job, the worker fetches a moment later. `batchId` = the
+    id of that fetch (its notifications have the same `batchId`), useful for checking with curl.
+  - **No double fetch:** while a fetch is waiting or running, no second one is queued; the response repeats its
+    `batchId` (each fetch costs 10 of the 200 daily requests).
+  - **503** when `NEWSDATA_API_KEY` is missing (the service behind us isn't available). Fetches all sources (only
+    NewsData.io now). Same guards as `admin/users`. OperationId `fetchNewsNow` (no UI uses it yet).
+  - The developer creates a NewsData.io account and puts the key in `alert-app-backend/.env` before step 4a.
+  - Shared tests: 38 (+1: `lastAlertAt` date or null, required). Three frontend type errors until the Orval types
+    are regenerated (step 5). The backend one (`AlertRulesService` didn't return `lastAlertAt`) **stopped
+    `nest start --watch` from starting the app**, so after 4a `AlertRulesService` returns a **temporary
+    `lastAlertAt: null`** (decided with the developer; replaced in 4d). Lesson: a backend type error is not "just a
+    warning", the dev server won't run with one.
+
+- [x] 3. Frontend UI: "Last alert" column in the alerts list (`utils/alert-rules/alertRuleColumns.tsx`), between
+      "Sends to" and "On" (a line on the cards on phones). Temporary sample data:
+      `pages/AlertRules/sampleLastAlertAt.ts` (the first rule "2 hours ago", the others none), deleted in step 5.
+  - **Relative time** (decided with the developer): "about 2 hours ago" (`formatTimeAgo()` in `global/utils/date.ts`,
+    date-fns `formatDistanceToNow`), in a `<time dateTime>`. The exact date and time (`PPp`) is in a tooltip
+    (`describeChild`: screen readers read the text and get the date as a description; a tap shows it on phones).
+  - **Never sent: `-`** (asked for by the developer), hidden from screen readers, which read "No alert sent yet"
+    instead (new `visually-hidden` SCSS mixin, also used by the AppLayout brand text now).
+  - Switched-off rules still show their last alert. The time is calculated when the list renders (it doesn't count
+    up on its own; every reload of the list updates it).
+  - Tests with the code: frontend 87 (+2: `formatTimeAgo`, the column with a date + tooltip and with `-`).
+    `testAlertRule()` has `lastAlertAt: null`. Two type errors remain until the Orval types are regenerated (step 5).
+- [x] 4. Backend, **in parts** (decided with the developer, so each part stays small enough to check), each with its
+      tests:
+  - [x] 4a. Migration `alerts`, BullMQ + Redis (`src/queues/`), `NewsDataAdapter` + `NewsSourceAdapter`
+        (`src/news-sources/`), ingest worker, the 2-hour scheduler, admin `POST /api/admin/news-sources/fetch`.
+        Checked: the first real start fetched 70 new articles of 70 (all 9 categories, every one with a source
+        name); a restart doesn't fetch again. Only the `ingest` queue exists so far: `match` and `notify` come with
+        their workers (4b, 4c).
+    - **New packages:** `bullmq`, `@nestjs/bullmq`, `ioredis` and `@date-fns/tz`. **BullMQ 6 doesn't bring the Redis
+      client `ioredis` any more** (it's optional): without it every queue fails to connect, and in the e2e tests the
+      endless errors ran out of memory (exit code 134).
+    - **New environment variables** (`.env.example`): `REDIS_URL` (default `redis://localhost:6379`),
+      `NEWSDATA_API_KEY`, `NEWS_POLL_INTERVAL_MINUTES` (default 120, min 15), `QUEUE_PREFIX` (default `alert-app`,
+      only changed by the e2e tests).
+    - **`top` is ignored completely** (decided with the developer, changes milestone 3): NewsData.io adds `top`
+      ("top story") to most articles (8 of 10 technology articles were "technology, top"), so mapped to `world` it
+      sent nearly every popular article to "World" rules. It's no longer fetched or mapped
+      (`NEWSDATA_IGNORED_CATEGORIES`); an article with only `top` (or no category) becomes `other`. Still 10
+      requests per fetch.
+    - **NewsData.io's `duplicate: true` articles are skipped** (decided with the developer): the same story from
+      another site, which our URL check can't see. 4 of 10 in the first sample.
+    - **`Article.sourceName`** added (decided with the developer): the publisher ("Ciodive"), for the alert email.
+    - `fetchLatest()` has no `since` parameter: NewsData.io's "latest" endpoint has no useful one on the free plan,
+      and already saved articles are skipped by the URL check anyway.
+    - Requests run one after the other; a failed one (e.g. 429) only loses its category, with a warning in the log
+      (never the URL: it contains the API key). The job only fails when all 10 fail. A failed fetch isn't retried
+      (`attempts: 1`, each try costs 10 requests): the next scheduled one runs anyway.
+    - `pubDate` ("2026-10-19 20:21:00", time zone in `pubDateTZ`) parsed with date-fns + `@date-fns/tz`.
+      Language is stored as `en` (the response says "english").
+    - **Saving:** `createManyAndReturn` with `skipDuplicates`: the database skips known URLs (or source +
+      externalId) itself and returns only the new rows (their ids go to the match queue in 4b).
+    - **Schedule:** `upsertJobScheduler('fetch-news', { every })` on start. The schedule lives in Redis: a restart
+      with the same interval keeps the next run time (checked in BullMQ's code and by restarting), so watch mode
+      doesn't use the quota. The first start, or a new interval, fetches right away. No API key → the schedule is
+      removed, with a warning.
+    - **"Fetch now":** looks for a waiting or running ingest job first (not "delayed", that's the next scheduled
+      one) and returns its id. Otherwise a new job with a UUID as its id (= `batchId`): BullMQ's own ids (1, 2,
+      ...) start again after Redis is emptied, and a reused `batchId` would block that batch's notifications.
+    - Finished/failed jobs: the last 100 are kept in Redis (`removeOnComplete`/`removeOnFail`).
+    - **e2e safety** (`test/setup-e2e.ts`, runs before each test file): `NEWSDATA_API_KEY` is emptied (no real
+      fetch, no schedule) and each test file gets its own `QUEUE_PREFIX`, removed from Redis after the file.
+      `news-sources.e2e-spec.ts` uses a fake source (`overrideProvider(NEWS_SOURCES)`).
+    - Tests with the code: backend unit 45 (+15: category mapping with `top`/requests, `NewsDataAdapter` with a fake
+      `fetch`, `NewsSourcesService`), e2e 46 (+4: admin only, background fetch saves the articles, known URLs
+      skipped, no second fetch while one runs). Checked that the last one fails without the "already queued" check.
+  - [x] 4b. Matcher + match worker (`src/matching/`: `rule-matcher.ts`, `MatchService`, `MatchProcessor`,
+        `MatchingModule`). Check: a keyword rule and a category rule, "fetch now", then `pending` rows in
+        `notification` / `notification_article` (Prisma Studio). Scope (agreed with the developer):
+    - **When:** after a fetch that saved new articles, the ingest worker queues one `match` job
+      (`{ batchId, articleIds }`); nothing new → no job. Only the new articles of a fetch are matched, so an article
+      is never matched twice. "Only articles fetched after the rule was created" is then mostly automatic (it
+      matters for a rule saved during a fetch).
+    - **Which rules:** enabled ones, and **not those of disabled (banned) users**.
+    - **Keywords** (milestone 3, made precise): all keywords (AND), each in the title **or** the description (they
+      may be in different places). **Case and accents are ignored** (`fiancee` = "Fiancée"). **Whole words, exact
+      form** (decided with the developer): `EV` doesn't match "every", `car` doesn't match "cars" (no plurals: `new`
+      would match "news"), but `EV` matches "EV's", "EV’s" (curly apostrophe, common in the data), "(EV)" and
+      "EV-maker". **Phrases:** the words in order, with any spaces or hyphens between them (`electric car` =
+      "electric-car").
+    - **Category:** the article's categories include the rule's category.
+    - **Result:** for each rule with matches, one `pending` `Notification` per channel of the rule, with all its
+      matched articles of this fetch (`NotificationArticle`). In one transaction; a second run of the same job creates
+      nothing (unique batch + rule + channel). The match job has 3 attempts with growing waits. Sending is 4c.
+    - **Code:** the matcher is a plain function (`ruleMatcher(rule)` returns a test for articles, so the keyword
+      patterns are built once per rule and job; no database, many unit tests). The worker loads the enabled rules
+      once per job and matches in JavaScript (fine at our size: max 20 rules per user).
+    - The fetched texts are clean (checked on 136 real articles: no HTML entities or tags; curly apostrophes and
+      accents do occur).
+    - **How it's built:**
+      - Whole words with a regular expression: "no letter or digit (any language) right before or after"
+        (`\p{L}\p{N}`), because JavaScript's `\b` only knows English letters. Accents removed with
+        `normalize('NFKD')` + removing the combining marks. Special characters in keywords are escaped (`C++`,
+        `AT&T`, `U.S.` work). Title and description are checked separately, so a phrase can't run from one into the
+        other.
+      - Phrase gaps: spaces, `-`, and the Unicode hyphens U+2010/U+2011 (written as `\u2010\u2011` escapes in the
+        code, so they're visible).
+      - `MatchService.match()` saves with `upsert` (empty `update`) in one transaction: a retry leaves existing
+        notifications unchanged. It returns the batch's notification ids (4c queues them for sending).
+      - The ingest worker calls `MatchService.enqueue()` (MatchingModule owns the match queue and its options).
+    - **Fixed from 4a:** `@nestjs/bullmq` _replaces_ the shared `defaultJobOptions` with a queue's own ones (it doesn't
+      merge them), so the ingest queue had lost "keep the last 100 jobs". `DEFAULT_JOB_OPTIONS` (`src/queues/`) is
+      now spread into every queue's options. Also good to know: BullMQ job ids can't contain `:`.
+    - e2e tests now delete the notifications their articles created (every new article is matched against all rules
+      in the database, also the developer's own).
+    - Tests with the code: backend unit 55 (+10: `ruleMatcher` — case/accents, whole words, no plurals,
+      apostrophes/brackets/hyphens, phrases, special characters, AND across title/description, category, rule age),
+      e2e 49 (+3 in `matching.e2e-spec.ts`: notifications per rule and channel with the right articles, nothing for
+      switched-off rules and disabled users; a second run creates nothing; no match job when nothing is new).
+      Checked that the first one fails without the "disabled users" filter.
+  - [x] 4c. Alert email template (`src/email/templates/alert.ts`), `EmailChannel` `alert` kind, notify worker
+        (`src/notifications/`: `NotifyService`, `NotifyProcessor`, `NotificationsModule`). Check: the email arrives
+        (or is in the log), status `sent`/`failed`.
+    - **Flow:** the match worker queues one `notify` job per notification (`addBulk`, job id = notification id, so
+      a retried match job adds no second job). `NotifyService.send()` loads the notification with its rule and
+      articles and sends through **`ChannelsService.send(channelId, message, language)`** (new; reuses the channel
+      lookup of the test message).
+    - **`ChannelMessage`** has `{ kind: 'alert', ruleName, articles, alertsUrl }` (`AlertArticle`: title, url,
+      description, sourceName, publishedAt). Each channel renders it; Slack (milestone 7) adds its own format.
+    - **Status:** success → `sent`, `sentAt`, `attempts` + 1, `error` cleared. Failure → `attempts` + 1, `error` saved,
+      `failed` after the last attempt, otherwise still `pending`, then the error is thrown so BullMQ tries again.
+      Already `sent` or deleted → nothing is sent (no double emails).
+    - **Retries:** 3 attempts, 30s then 60s (`exponential`). **At most 2 sends per second** (worker `limiter`):
+      Resend accepts at most 2 requests per second.
+    - **Permanent errors are not retried** (added after the developer's 4c check, where a 422 for
+      `user1@example.com` was tried 3 times): `ResendEmailProvider` throws a **`PermanentSendError`**
+      (`src/errors/`) for Resend's 4xx answers except 429 (422 invalid or `example.com` address, 403 address the
+      test sender may not use). `NotifyService` then marks the notification `failed` after this one attempt and
+      throws BullMQ's **`UnrecoverableError`**, so the job fails without the remaining attempts. 429, 5xx and network
+      errors are still retried. Resend rejects `example.com` addresses outright (reserved domain), even with a
+      verified domain.
+    - Tests: unit 64 (+3: `ResendEmailProvider` with a mocked SDK: sender, 403/422 permanent, 429/500/unknown
+      temporary), e2e 54 (+1: a permanent error → `failed` after 1 attempt and the BullMQ job failed). Checked that it
+      fails without the change.
+    - **Defaults picked while building** (not discussed, easy to change): one email per rule and fetch with all its
+      articles, **newest first**, no limit on the number; subject "N new articles for your alert “Rule”" (singular
+      for one); each article: title as a link, "Source · Oct 19, 2026, 8:21 PM UTC" (**UTC**: users have no time
+      zone yet), description **cut to ~300 characters** at a space, plain-text version with the URLs; "Manage your
+      alerts" link to `<CORS_ORIGIN>/alerts` (CORS_ORIGIN is the frontend address); English. Only `http(s)` links
+      are clickable (a provider could send a `javascript:` link); every text is HTML-escaped. A rule switched off
+      after matching but before sending is still sent (seconds apart).
+    - **e2e safety:** `test/setup-e2e.ts` also empties `RESEND_API_KEY` (emails only to the log): the test articles
+      are matched against every rule in the database, including the developer's, which would have sent real
+      emails. `notifications.e2e-spec.ts` uses a fake `EmailProvider` and a keyword that is the run id, so only its
+      own rule matches.
+    - Notifications created during the 4b check (before 4c) stay `pending`: they were never queued.
+    - Tests with the code: backend unit 61 (+6: alert email — subject with count, article lines with source/date,
+      missing fields, alerts link, shortening, HTML escaping and no `javascript:` links), e2e 52 (+3: one email per
+      rule with only its articles and `sent`; error saved, `pending` then `failed` after the last attempt; never
+      sent twice). Checked that the last one fails without the "already sent" check.
+  - [x] 4d. "Last alert" in the alert rules API (replaced the temporary `lastAlertAt: null` in
+        `AlertRulesService.toAlertRule`). Check: `GET /api/alert-rules` (the developer checks 4c and 4d together).
+    - Every rule query includes the rule's newest **sent** notification (`where status = sent`, `orderBy sentAt
+desc`, `take: 1`, served by the index on `alertRuleId` + `sentAt`); `lastAlertAt` = its `sentAt`, or `null`.
+      The include is now called `withDetails` (channels + last alert).
+    - **Fixed a race in the 4b test:** since 4c the notify job starts right after matching, so the matching e2e test
+      can find its notification already `sent`. It now only checks what matching decides (batch, channel, articles)
+      and accepts `pending` or `sent`.
+    - Tests with the code: e2e 53 (+1: newest sent notification wins over older sent and newer failed/pending ones,
+      `null` without any, list and single rule). Checked that it fails without the "sent only" filter.
+- [x] 5. Connect: Orval types regenerated by the developer (`lastAlertAt` in `AlertRule`, new `FetchNewsResponse`
+      and `fetchNewsNow` in `api/generated/admin/`, not used: there is no UI for "fetch now"). Sample data deleted
+      (`pages/AlertRules/sampleLastAlertAt.ts`); `AlertRulesPage` reads the rules straight from the API again. The
+      three frontend type errors from step 2 are gone; frontend 87 tests pass. The developer clicked through fetch →
+      email → "Last alert" in 4c/4d.
+- [x] 6. Tests (gaps only, see "Steps for every milestone"). Final counts: shared 38, backend unit 64, backend e2e
+      57, frontend 87, all passing; type checks, lint and `npm run format` clean. Gaps filled (e2e +3):
+  - **e2e safety guard** (`app.e2e-spec.ts`): the e2e app uses `LogEmailProvider`, no news source and an `e2e-`
+    queue prefix. If `test/setup-e2e.ts` breaks, this fails before a real email or fetch can happen (checked by
+    removing the `RESEND_API_KEY` line).
+  - **Each notification is queued only once** (job id = notification id): queuing a sent one again adds no job
+    (checked: fails without the job id).
+  - **A rule deleted before sending:** its notification is gone (cascade), nothing is sent, no crash.
+  - Checked during the milestone that these tests fail without their feature: "no second fetch while one runs",
+    "skip disabled users", "already sent → skip", "permanent error → no retry", "last alert = sent only", plus the
+    two above.
+- [x] 7. Wrap-up: `npm run format`, plans updated (this file + PLAN_SUMMARY.md, condensed for milestone 7),
+      conversation saved in `docs/claude-conversations/5-first-real-alerts_*`, review by the developer, commit by the
+      developer (on `milestone-5-first-real-alerts`).
+  - **Lessons for the next milestones** (also in PLAN_SUMMARY.md): propose first and build after the developer's OK
+    (the model in step 1 was written before it was discussed); split big steps into parts the developer can check;
+    a backend type error stops the dev server; make every job safe to run twice; e2e tests must never reach real
+    providers (the test articles meet the developer's real rules).
+
 ---
 
 ## Open questions (ours, decided during the scope)
 
 - **Slack:** incoming webhook or Slack app (OAuth)? Decide in milestone 7 after research. With the time pressure,
   the simpler option is preferred.
-- **Polling vs. quota:** 9 categories need ~240 requests/day at hourly polling, above NewsData.io's ~200/day.
-  Choose the interval/order (or a paid plan) in milestone 5.
+- **Polling vs. quota:** decided in milestone 5: every 2 hours, 10 requests per poll = 120/day (see
+  [Milestone 5 steps](#milestone-5-steps-first-real-alerts)).
 - **Verify before launch:** NewsData.io and Resend free-tier terms on their official pricing pages.
 
 ## TODO (later)
 
 Moved out of the current scope on 2026-10-20. Revisit after milestones 4, 5 and 7.
+
+**First**
+
+- **Bull Board** (asked for by the developer in M5, no time then): a ready-made web page for the BullMQ queues
+  (waiting/running/failed jobs, job data and errors, a retry button), served by the backend. About 1–2 hours:
+  `@bull-board/api` + `@bull-board/nestjs` + `@bull-board/express` (support NestJS 12 and BullMQ 6), register the
+  queues, **admins only** (Bull Board is Express middleware, so our `AuthGuard`/`AdminGuard` don't cover it: a small
+  middleware with the same session + role check, 401/403, e2e test), optional "Queues" link in the admin menu.
 
 **Milestones**
 
@@ -971,7 +1244,9 @@ Moved out of the current scope on 2026-10-20. Revisit after milestones 4, 5 and 
 - Playwright end-to-end tests. Category mapping editor for admins.
 - Email: React Email templates instead of plain HTML (M4 used plain HTML because of the time). Extra email addresses
   with a confirmation link. Rename and delete channels.
-- Sending to any user needs a verified Resend domain (M4 is development only, see manager question 3).
+- Sending to any user needs a verified Resend domain (M4 is development only, see manager question 4).
+- Alerts (M5): "Recent alerts" page for users, deleting old articles, a language setting per user
+  (alert emails and fetched articles are English), `Source` table (with milestone 8).
 
 ## Questions for the manager
 
@@ -983,39 +1258,47 @@ default we use until there is an answer. It includes every point where the devel
 **News data**
 
 1. **Is NewsData.io's free tier good enough?** It has delays of up to ~12h (no real "breaking news"), snippets
-   only, and with 9 categories we go above the ~200 requests/day limit, so some days have fewer articles.
-   Should we pay for a plan or add more sources?
-   - Default: NewsData.io free tier, fewer articles when the quota runs out. _(Planning: "we can extend it if it's
-     working correctly and we like the result"; M3: "if we go above the limit, it will have fewer data")_
-2. **Which other alert types matter most** (market movements, natural disasters, from the brief)?
+   only, max 10 articles per request, and the ~200 requests/day only allow fetching our 9 categories every 2 hours.
+   The first real fetch (M5) showed what that means: the newest 10 articles per category covered only ~20 minutes
+   of news (published ~14 hours earlier), so **most articles of each 2-hour window are never seen** and rules can
+   miss news. Should we pay for a plan or add more sources?
+   - Default: NewsData.io free tier, fetched every 2 hours (120 of the 200 requests/day), so alerts can arrive
+     up to ~2h after the provider's own delay. _(Planning: "we can extend it if it's working correctly and we like
+     the result"; M3: "if we go above the limit, it will have fewer data"; M5: every 2 hours)_
+2. **Are English articles enough?** Fetching other languages means category alerts in languages the user may not
+   read, so it would need a language choice per user or per rule.
+   - Default: English articles only. _(M5)_
+3. **Which other alert types matter most** (market movements, natural disasters, from the brief)?
    - Default: news with categories only. _(Planning)_
 
 **Notifications**
 
-3. **Is Resend's free tier enough?** It allows 100 emails/day and 3,000/month **for all users together**, and
+4. **Is Resend's free tier enough?** It allows 100 emails/day and 3,000/month **for all users together**, and
    needs a verified domain to send to anyone other than the Resend account owner. Do we have a company domain we can
    use, and is a paid plan possible?
    - Default: free tier, sending from a verified domain if there is one. _(M4)_
 
 **Alert rules**
 
-4. **Should keyword rules match all keywords (AND) or any of them (OR)?** Or should users choose?
-   - Default: all keywords (AND). _(M3: "later we can add OR if production decides")_
-5. **Should one rule combine keywords and a category** (or several categories)?
+5. **Should keyword rules match all keywords (AND) or any of them (OR)?** Or should users choose? And should a
+   keyword also match other forms (`car` → "cars")? With AND only, a user can't say "car or cars".
+   - Default: all keywords (AND), exact whole words (no plurals). _(M3: "later we can add OR if production
+     decides"; M5: exact form, because `new` would match "news")_
+6. **Should one rule combine keywords and a category** (or several categories)?
    - Default: a rule uses keywords **or** one category. _(Planning: categories + keywords; M3: "we can update the
      implementation")_
-6. **Are hourly/daily digests needed for the first release?**
+7. **Are hourly/daily digests needed for the first release?**
    - Default: every alert is sent instantly (digests are in the TODO list). _(Planning: "a setting to choose the
      interval"; scope cut)_
 
 **Users and admin**
 
-7. **Is email and password enough to log in?** Or are Google login, SSO or 2FA needed?
+8. **Is email and password enough to log in?** Or are Google login, SSO or 2FA needed?
    - Default: email and password. _(Planning: "we can add anything if needed")_
-8. **Do admins need filters (role, status) and sorting in the user list?**
+9. **Do admins need filters (role, status) and sorting in the user list?**
    - Default: search by username/email and pagination only. _(M2: "we can add later if it's asked")_
 
 **Project**
 
-9. **If the app is approved, will more developers join?** Then we split the monorepo into one repo per app.
-   - Default: one monorepo. _(Planning: "if this app is approved, we can change later")_
+10. **If the app is approved, will more developers join?** Then we split the monorepo into one repo per app.
+    - Default: one monorepo. _(Planning: "if this app is approved, we can change later")_

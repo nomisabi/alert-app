@@ -7,19 +7,23 @@ import { CategoriesModule } from './categories/categories.module.js';
 import { ChannelsModule } from './channels/channels.module.js';
 import { validateEnv } from './config/env.js';
 import { HealthModule } from './health/health.module.js';
+import { NewsSourcesModule } from './news-sources/news-sources.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
+import { QueuesModule } from './queues/queues.module.js';
 
 @Module({
   imports: [
     // Loads .env and validates it. isGlobal: ConfigService is injectable everywhere.
     ConfigModule.forRoot({ isGlobal: true, validate: validateEnv }),
     PrismaModule,
+    QueuesModule,
     AuthModule,
     HealthModule,
     AdminModule,
     CategoriesModule,
     AlertRulesModule,
     ChannelsModule,
+    NewsSourcesModule,
   ],
 })
 export class AppModule {}

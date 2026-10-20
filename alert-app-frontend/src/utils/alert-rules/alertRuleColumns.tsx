@@ -4,6 +4,7 @@ import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import { Chip, IconButton, Switch, Tooltip } from '@mui/material';
 import { ChannelIcon } from '../../global/components/ChannelIcon/ChannelIcon';
 import type { DataTableColumn } from '../../global/components/DataTable/DataTable';
+import { formatDate, formatTimeAgo } from '../../global/utils/date';
 import styles from '../../pages/AlertRules/AlertRulesPage.module.scss';
 import type { AlertRuleColumnsOptions } from '../../types/alert-rules/alertRules';
 
@@ -80,6 +81,23 @@ export function getAlertRuleColumns({
             ))}
         </span>
       ),
+    },
+    {
+      key: 'lastAlert',
+      header: t('list.columns.lastAlert'),
+      render: (rule) =>
+        rule.lastAlertAt ? (
+          // "about 2 hours ago", the exact date and time in the tooltip.
+          // describeChild: screen readers keep reading the text and get the date as a description.
+          <Tooltip title={formatDate(rule.lastAlertAt, 'PPp')} enterTouchDelay={0} describeChild>
+            <time dateTime={rule.lastAlertAt}>{formatTimeAgo(rule.lastAlertAt)}</time>
+          </Tooltip>
+        ) : (
+          <>
+            <span aria-hidden="true">-</span>
+            <span className={styles.visuallyHidden}>{t('list.noAlertYet')}</span>
+          </>
+        ),
     },
     {
       key: 'enabled',

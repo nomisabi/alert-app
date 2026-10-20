@@ -20,6 +20,7 @@ export * from './channel';
 export * from './channelList';
 export * from './channelType';
 export * from './createAlertRuleRequest';
+export * from './fetchNewsResponse';
 export * from './getAdminUsersParams';
 export * from './healthResponseDto';
 export * from './healthResponseDtoDatabase';

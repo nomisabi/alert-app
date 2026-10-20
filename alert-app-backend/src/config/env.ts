@@ -18,6 +18,20 @@ export const envSchema = z.object({
     .transform((key) => key || undefined),
   // Without a verified domain, Resend's test sender only delivers to the Resend account's own email
   EMAIL_FROM: z.string().min(1).default('Alert App <onboarding@resend.dev>'),
+  // Background jobs (milestone 5): Redis from docker-compose.yml holds the BullMQ queues
+  REDIS_URL: z.url().default('redis://localhost:6379'),
+  // Start of every queue's Redis keys. The e2e tests use their own, so they never touch the
+  // queues of the running backend (see test/setup-e2e.ts).
+  QUEUE_PREFIX: z.string().min(1).default('alert-app'),
+  // NewsData.io (https://newsdata.io). Without a key, no news is fetched (only a warning).
+  NEWSDATA_API_KEY: z
+    .string()
+    .trim()
+    .optional()
+    .transform((key) => key || undefined),
+  // How often news is fetched. Each fetch costs 10 of the ~200 free requests a day:
+  // every 120 minutes = 120 a day.
+  NEWS_POLL_INTERVAL_MINUTES: z.coerce.number().int().min(15).default(120),
 });
 
 export type Env = z.infer<typeof envSchema>;

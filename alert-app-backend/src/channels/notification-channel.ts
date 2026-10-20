@@ -8,11 +8,32 @@ export interface ChannelTarget {
   user: { email: string; name: string };
 }
 
+/** One article in an alert message. */
+export interface AlertArticle {
+  title: string;
+  url: string;
+  description: string | null;
+  /** The publisher, e.g. "Ciodive" */
+  sourceName: string | null;
+  publishedAt: Date;
+}
+
 /**
  * What to send, independent of the channel: each channel turns it into its own format
- * (an HTML email, a Slack message, ...). Milestone 5 adds `{ kind: 'alert', ... }`.
+ * (an HTML email, a Slack message, ...).
+ * - `test`: the "Send test message" button
+ * - `alert`: the new articles one rule matched in one fetch
  */
-export type ChannelMessage = { kind: 'test' };
+export type ChannelMessage =
+  | { kind: 'test' }
+  | {
+      kind: 'alert';
+      ruleName: string;
+      /** Newest first */
+      articles: AlertArticle[];
+      /** The alerts page in the app, for "Manage your alerts" */
+      alertsUrl: string;
+    };
 
 /**
  * One way of sending alerts. Adding a channel type (Slack in milestone 7) = one class that

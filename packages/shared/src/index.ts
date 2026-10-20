@@ -15,6 +15,7 @@ export * from './schemas/alert-rules.js';
 export * from './schemas/auth.js';
 export * from './schemas/categories.js';
 export * from './schemas/channels.js';
+export * from './schemas/news-sources.js';
 export * from './schemas/pagination.js';
 export * from './types/api-error.js';
 export * from './types/auth.js';

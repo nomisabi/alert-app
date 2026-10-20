@@ -62,6 +62,11 @@ export const alertRuleSchema = z.object({
   enabled: z.boolean(),
   /** Where matches are sent (ids from GET /api/channels). */
   channelIds: z.array(z.string()),
+  /**
+   * When this rule last sent an alert, on any of its channels (ISO 8601). null = never.
+   * Only sent messages count, not pending or failed ones. Read-only (not in the requests).
+   */
+  lastAlertAt: z.iso.datetime().nullable(),
   /** ISO 8601, e.g. 2026-10-19T20:46:42.000Z */
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),

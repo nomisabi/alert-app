@@ -13,11 +13,20 @@ import { ApiException } from '../errors/api.exception.js';
 import type { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 
-/** Every query loads the rule's channel ids, in the order of the channel list (oldest first). */
-const withChannels = {
+/**
+ * What every query loads with a rule: its channel ids, in the order of the channel list (oldest
+ * first), and its newest sent notification ("last alert", via the index on alertRuleId + sentAt).
+ */
+const withDetails = {
   channels: { select: { channelId: true }, orderBy: { channel: { createdAt: 'asc' } } },
+  notifications: {
+    where: { status: 'sent' },
+    orderBy: { sentAt: 'desc' },
+    take: 1,
+    select: { sentAt: true },
+  },
 } satisfies Prisma.AlertRuleInclude;
-type AlertRuleRow = Prisma.AlertRuleGetPayload<{ include: typeof withChannels }>;
+type AlertRuleRow = Prisma.AlertRuleGetPayload<{ include: typeof withDetails }>;
 
 /**
  * A user's own alert rules. Every query filters by `userId`, so nobody can see or change
@@ -35,7 +44,7 @@ export class AlertRulesService {
   async list(userId: string): Promise<AlertRuleList> {
     const rows = await this.prisma.alertRule.findMany({
       where: { userId },
-      include: withChannels,
+      include: withDetails,
       // `id` as a tie-breaker for rules created in the same millisecond (uuid v7 sorts by time)
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     });
@@ -65,7 +74,7 @@ export class AlertRulesService {
           // One row in the join table per channel
           channels: { create: request.channelIds.map((channelId) => ({ channelId })) },
         },
-        include: withChannels,
+        include: withDetails,
       });
       return toAlertRule(row);
     });
@@ -98,7 +107,7 @@ export class AlertRulesService {
             create: changes.channelIds.map((channelId) => ({ channelId })),
           },
         },
-        include: withChannels,
+        include: withDetails,
       });
       return toAlertRule(row);
     });
@@ -115,7 +124,7 @@ export class AlertRulesService {
     // findFirst, not findUnique: the filter has the owner as well as the id
     const row = await db.alertRule.findFirst({
       where: { id: ruleId, userId },
-      include: withChannels,
+      include: withDetails,
     });
     if (!row) throw new ApiException(HttpStatus.NOT_FOUND, 'ALERT_RULE_NOT_FOUND');
     return row;
@@ -157,6 +166,8 @@ function toAlertRule(row: AlertRuleRow): AlertRule {
       row.category === null ? null : (appCategorySchema.safeParse(row.category).data ?? 'other'),
     enabled: row.enabled,
     channelIds: row.channels.map((link) => link.channelId),
+    // The newest sent notification (at most one is loaded); null = never sent
+    lastAlertAt: row.notifications[0]?.sentAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };

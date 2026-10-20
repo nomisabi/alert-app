@@ -12,6 +12,7 @@ import type { Language } from '../i18n/i18n.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import {
   NOTIFICATION_CHANNELS,
+  type ChannelMessage,
   type ChannelTarget,
   type NotificationChannel,
 } from './notification-channel.js';
@@ -79,6 +80,18 @@ export class ChannelsService {
       this.logger.error(`Test message for channel ${channelId} failed`, error);
       throw new ApiException(HttpStatus.BAD_GATEWAY, 'CHANNEL_TEST_FAILED');
     }
+  }
+
+  /**
+   * Sends a message through a channel (any user's: for the background jobs, not for requests).
+   * Throws when the channel doesn't exist or sending fails.
+   */
+  async send(channelId: string, message: ChannelMessage, language: Language): Promise<void> {
+    const row = await this.prisma.channel.findUniqueOrThrow({
+      where: { id: channelId },
+      include: withUser,
+    });
+    await this.channelOf(row.type).send(toTarget(row), message, language);
   }
 
   /**
