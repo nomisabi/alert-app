@@ -1,0 +1,59 @@
+{
+  "list": {
+    "title": "My alerts",
+    "description": "Get notified when news matches one of your alerts.",
+    "tableLabel": "My alerts",
+    "new": "New alert",
+    "limitReached": "You have {{max}} alerts, which is the maximum. Delete one to add another.",
+    "loadError": "Your alerts could not be loaded.",
+    "columns": {
+      "name": "Name",
+      "findsBy": "Finds news by",
+      "enabled": "On",
+      "actions": "Actions"
+    },
+    "allKeywords": "All of:",
+    "category": "Category:",
+    "toggle": "Send alerts for {{name}}",
+    "edit": "Edit {{name}}",
+    "delete": "Delete {{name}}",
+    "empty": {
+      "title": "No alerts yet",
+      "description": "Create an alert to get notified when news matches your keywords or a category you choose.",
+      "action": "Create your first alert"
+    }
+  },
+  "dialog": {
+    "createTitle": "New alert",
+    "editTitle": "Edit alert",
+    "name": "Name",
+    "nameHint": "Only you see this name.",
+    "type": "Find news by",
+    "types": {
+      "keywords": "Keywords",
+      "category": "Category"
+    },
+    "keywords": "Keywords",
+    "keywordsPlaceholder": "Type a keyword and press Enter",
+    "keywordsHint": "An article must contain all of them (max {{max}}).",
+    "keywordDuplicate": "“{{keyword}}” is already in the list.",
+    "keywordsHelp": "How to add keywords",
+    "keywordsHelpText": "Type a word or a phrase, e.g. “electric car”, and press Enter to add it. Remove one with its ✕ or with Backspace. Only articles that contain all keywords (in the title or the description) are sent to you.",
+    "category": "Category",
+    "categoryHint": "You get every article in this category.",
+    "create": "Create alert",
+    "save": "Save"
+  },
+  "deleteDialog": {
+    "title": "Delete {{name}}?",
+    "description": "You won't get notifications for this alert any more. This can't be undone.",
+    "confirm": "Delete"
+  },
+  "notify": {
+    "created": "Alert {{name}} created.",
+    "updated": "Alert {{name}} saved.",
+    "deleted": "Alert {{name}} deleted.",
+    "enabled": "Alert {{name}} turned on.",
+    "disabled": "Alert {{name}} turned off."
+  }
+}

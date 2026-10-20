@@ -1,5 +1,6 @@
 import { Navigate, type RouteObject } from 'react-router';
 import { AppLayout } from '../global/components/AppLayout/AppLayout';
+import { AlertRulesPage } from '../pages/AlertRules/AlertRulesPage';
 import { ProtectedRoute } from '../global/components/ProtectedRoute/ProtectedRoute';
 import { AdminUsersPage } from '../pages/admin/Users/AdminUsersPage';
 import { ErrorPage } from '../pages/Error/ErrorPage';
@@ -23,6 +24,10 @@ export const routes: RouteObject[] = [
           { index: true, element: <HomePage /> },
           { path: 'login', element: <LoginPage /> },
           { path: 'signup', element: <SignUpPage /> },
+          {
+            element: <ProtectedRoute />,
+            children: [{ path: 'alerts', element: <AlertRulesPage /> }],
+          },
           {
             element: <ProtectedRoute requireAdmin />,
             children: [

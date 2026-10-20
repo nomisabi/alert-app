@@ -84,10 +84,7 @@ export function AdminUsersPage() {
         columns={columns}
         rows={users.data?.items ?? []}
         getRowKey={(user) => user.id}
-        total={users.data?.total ?? 0}
-        page={page}
-        pageSize={pageSize}
-        onPageChange={setPage}
+        pagination={{ total: users.data?.total ?? 0, page, pageSize, onPageChange: setPage }}
         isLoading={users.isPending}
         isFetching={users.isPlaceholderData}
         errorMessage={users.isError ? t('users.loadError') : undefined}

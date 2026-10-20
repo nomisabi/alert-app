@@ -1,0 +1,33 @@
+@use '../../../styles/mixins' as *;
+
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: spacing(4) spacing(2);
+  border: 1px dashed var(--mui-palette-divider);
+  border-radius: var(--mui-shape-borderRadius);
+  text-align: center;
+
+  @include up(md) {
+    padding: spacing(6) spacing(4);
+  }
+}
+
+.icon {
+  margin-bottom: spacing(1);
+  color: var(--mui-palette-text-secondary);
+
+  svg {
+    font-size: 3rem;
+  }
+}
+
+.description {
+  max-width: 32rem;
+  margin-top: spacing(1);
+}
+
+.action {
+  margin-top: spacing(3);
+}

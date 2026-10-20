@@ -1,17 +1,17 @@
 import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import { IconButton, InputAdornment, TextField, type TextFieldProps } from '@mui/material';
-import { VALIDATION_VALUES } from '@alert-app/shared';
-import type { ParseKeys } from 'i18next';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useController, type Control, type FieldPath, type FieldValues } from 'react-hook-form';
+import { fieldErrorText } from '../../utils/fieldError';
 
-type FormTextFieldProps<T extends FieldValues> = Omit<
+/** `TOutput`: what the form hands to its submit handler, when the schema changes the values' shape. */
+type FormTextFieldProps<T extends FieldValues, TOutput extends FieldValues> = Omit<
   TextFieldProps,
   'name' | 'value' | 'defaultValue' | 'onChange' | 'onBlur' | 'error' | 'inputRef'
 > & {
-  control: Control<T>;
+  control: Control<T, unknown, TOutput>;
   name: FieldPath<T>;
   onBlur?: () => void;
 };
@@ -22,7 +22,7 @@ type FormTextFieldProps<T extends FieldValues> = Omit<
  * namespace and is translated here, a server error (`type: 'server'`) is already translated.
  * `type="password"` adds a show/hide button. `onBlur` runs after React Hook Form's own blur handling.
  */
-export function FormTextField<T extends FieldValues>({
+export function FormTextField<T extends FieldValues, TOutput extends FieldValues = T>({
   control,
   name,
   type,
@@ -30,7 +30,7 @@ export function FormTextField<T extends FieldValues>({
   slotProps,
   onBlur,
   ...props
-}: FormTextFieldProps<T>) {
+}: FormTextFieldProps<T, TOutput>) {
   const { t } = useTranslation(['validation', 'auth']);
   const {
     field: { ref, ...field },
@@ -39,10 +39,7 @@ export function FormTextField<T extends FieldValues>({
   const [showPassword, setShowPassword] = useState(false);
 
   const isPassword = type === 'password';
-  let errorText = error?.message;
-  if (errorText && error?.type !== 'server') {
-    errorText = t(errorText as ParseKeys<'validation'>, VALIDATION_VALUES);
-  }
+  const errorText = fieldErrorText(error);
 
   const passwordToggle = (
     <InputAdornment position="end">

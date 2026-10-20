@@ -1,0 +1,55 @@
+@use '../../styles/mixins' as *;
+
+.limit {
+  margin-bottom: spacing(2);
+}
+
+// Keywords or the category of a rule
+.chips {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: spacing(0.5);
+}
+
+.chipsLabel {
+  margin-right: spacing(0.5);
+  color: var(--mui-palette-text-secondary);
+}
+
+.actions {
+  display: inline-flex;
+  white-space: nowrap;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  height: 100%; // full-screen dialog on phones: buttons stay at the bottom
+}
+
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: spacing(2.5);
+
+  // Room for the floating label of the first field below the title
+  // (MUI removes the top padding of content that follows a dialog title)
+  padding-top: spacing(1);
+}
+
+.keywords {
+  display: flex;
+  align-items: flex-start;
+  gap: spacing(0.5);
+}
+
+.keywordsInput {
+  flex: 1;
+  min-width: 0;
+}
+
+// Lines the info button up with the input, not with the hint below it
+.keywordsHelp {
+  margin-top: spacing(1);
+}

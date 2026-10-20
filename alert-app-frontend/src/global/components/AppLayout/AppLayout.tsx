@@ -1,7 +1,7 @@
 import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
 import { AppBar, Button, Container, Toolbar, Typography } from '@mui/material';
 import { useTranslation } from 'react-i18next';
-import { Link, Outlet } from 'react-router';
+import { Link, NavLink, Outlet } from 'react-router';
 import { useSession } from '../../../api/auth/useSession';
 import { AccountMenu } from './AccountMenu';
 import styles from './AppLayout.module.scss';
@@ -20,13 +20,21 @@ export function AppLayout() {
         <Toolbar>
           <Link to="/" className={styles.brand}>
             <NotificationsActiveIcon />
-            <Typography variant="h6" component="span">
+            {/* Hidden on phones to make room, but still the link's name for screen readers */}
+            <Typography variant="h6" component="span" className={styles.brandText}>
               {t('app.name')}
             </Typography>
           </Link>
           <nav className={styles.nav} aria-label={t('auth:nav.label')}>
             {/* Nothing while the session loads, so the buttons don't flash */}
-            {!isPending && user && <AccountMenu user={user} />}
+            {!isPending && user && (
+              <>
+                <Button component={NavLink} to="/alerts" color="inherit" size="small">
+                  {t('nav.myAlerts')}
+                </Button>
+                <AccountMenu user={user} />
+              </>
+            )}
             {!isPending && !user && (
               <>
                 <Button component={Link} to="/login" color="inherit" size="small">

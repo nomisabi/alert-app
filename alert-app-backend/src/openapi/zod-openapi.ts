@@ -1,7 +1,13 @@
 import {
   adminUserListSchema,
   adminUserSchema,
+  alertRuleListSchema,
+  alertRuleSchema,
+  categoryListSchema,
+  categorySchema,
+  createAlertRuleRequestSchema,
   updateAdminUserRequestSchema,
+  updateAlertRuleRequestSchema,
 } from '@alert-app/shared';
 import { applyDecorators } from '@nestjs/common';
 import { ApiQuery, type OpenAPIObject } from '@nestjs/swagger';
@@ -19,6 +25,12 @@ const apiSchemas = {
   AdminUser: adminUserSchema,
   AdminUserList: adminUserListSchema,
   UpdateAdminUserRequest: updateAdminUserRequestSchema,
+  Category: categorySchema,
+  CategoryList: categoryListSchema,
+  AlertRule: alertRuleSchema,
+  AlertRuleList: alertRuleListSchema,
+  CreateAlertRuleRequest: createAlertRuleRequestSchema,
+  UpdateAlertRuleRequest: updateAlertRuleRequestSchema,
 } satisfies Record<string, z.ZodType>;
 
 export type ApiSchemaName = keyof typeof apiSchemas;

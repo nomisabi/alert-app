@@ -13,6 +13,17 @@ describe('AppLayout', () => {
 
     expect(await screen.findByRole('link', { name: 'Log in' })).toHaveAttribute('href', '/login');
     expect(screen.getByRole('link', { name: 'Sign up' })).toHaveAttribute('href', '/signup');
+    expect(screen.queryByRole('link', { name: 'My alerts' })).not.toBeInTheDocument();
+  });
+
+  it('shows the "My alerts" link only when logged in', async () => {
+    vi.mocked(getSession).mockResolvedValue(testSession());
+    renderRoute('/');
+
+    expect(await screen.findByRole('link', { name: 'My alerts' })).toHaveAttribute(
+      'href',
+      '/alerts',
+    );
   });
 
   it("shows the user's name and a menu without the admin link for users", async () => {

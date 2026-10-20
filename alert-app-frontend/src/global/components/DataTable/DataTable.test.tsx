@@ -27,7 +27,7 @@ const columns: DataTableColumn<Fruit>[] = [
   },
 ];
 
-function renderTable(props: Partial<Parameters<typeof DataTable<Fruit>>[0]> = {}) {
+function renderTable(props: Partial<Parameters<typeof DataTable<Fruit>>[0]> = {}, page = 1) {
   const onPageChange = vi.fn();
   renderWithProviders(
     <DataTable
@@ -35,10 +35,7 @@ function renderTable(props: Partial<Parameters<typeof DataTable<Fruit>>[0]> = {}
       columns={columns}
       rows={fruits}
       getRowKey={(fruit) => fruit.id}
-      total={45}
-      page={1}
-      pageSize={20}
-      onPageChange={onPageChange}
+      pagination={{ total: 45, page, pageSize: 20, onPageChange }}
       emptyText="No fruits"
       {...props}
     />,
@@ -91,7 +88,7 @@ describe('DataTable', () => {
 
   it('pages on the server, counting pages from 1', async () => {
     const user = userEvent.setup();
-    const { onPageChange } = renderTable({ page: 2 });
+    const { onPageChange } = renderTable({}, 2);
 
     expect(screen.getByText('21–40 of 45')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Go to next page' }));
@@ -100,8 +97,15 @@ describe('DataTable', () => {
     expect(onPageChange).toHaveBeenCalledWith(1);
   });
 
+  it('shows no pagination for lists without it', () => {
+    renderTable({ pagination: undefined });
+
+    expect(screen.getByText('Apple')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Go to next page' })).not.toBeInTheDocument();
+  });
+
   it('shows the empty text when there are no rows', () => {
-    renderTable({ rows: [], total: 0 });
+    renderTable({ rows: [], pagination: undefined });
 
     expect(screen.getByText('No fruits')).toBeInTheDocument();
     expect(screen.queryByRole('list')).not.toBeInTheDocument();

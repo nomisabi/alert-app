@@ -38,12 +38,15 @@ interface DataTableProps<Row> {
   columns: DataTableColumn<Row>[];
   rows: Row[];
   getRowKey: (row: Row) => string;
-  /** Number of rows on all pages together. */
-  total: number;
-  /** 1-based, like our API. */
-  page: number;
-  pageSize: number;
-  onPageChange: (page: number) => void;
+  /** Server-side paging. Leave it out for short lists that are loaded at once. */
+  pagination?: {
+    /** Number of rows on all pages together. */
+    total: number;
+    /** 1-based, like our API. */
+    page: number;
+    pageSize: number;
+    onPageChange: (page: number) => void;
+  };
   /** First load: shows a spinner instead of the rows. */
   isLoading?: boolean;
   /** Loading another page while the current rows stay visible. */
@@ -55,19 +58,16 @@ interface DataTableProps<Row> {
 }
 
 /**
- * A paginated list: a table on wide screens (md and up), cards on smaller ones,
+ * A list: a table on wide screens (md and up), cards on smaller ones,
  * because a table with many columns doesn't fit on a phone.
- * Paging happens on the server: `rows` is one page, `total` counts all rows.
+ * With `pagination`, paging happens on the server: `rows` is one page, `total` counts all rows.
  */
 export function DataTable<Row>({
   label,
   columns,
   rows,
   getRowKey,
-  total,
-  page,
-  pageSize,
-  onPageChange,
+  pagination,
   isLoading = false,
   isFetching = false,
   errorMessage,
@@ -140,17 +140,21 @@ export function DataTable<Row>({
           ))}
         </ul>
       )}
-      <TablePagination
-        component="div"
-        count={total}
-        // MUI counts pages from 0
-        page={page - 1}
-        onPageChange={(_event, newPage) => onPageChange(newPage + 1)}
-        rowsPerPage={pageSize}
-        rowsPerPageOptions={[]}
-        labelDisplayedRows={({ from, to, count }) => t('table.displayedRows', { from, to, count })}
-        getItemAriaLabel={(type) => t(`table.${type}Page`)}
-      />
+      {pagination && (
+        <TablePagination
+          component="div"
+          count={pagination.total}
+          // MUI counts pages from 0
+          page={pagination.page - 1}
+          onPageChange={(_event, newPage) => pagination.onPageChange(newPage + 1)}
+          rowsPerPage={pagination.pageSize}
+          rowsPerPageOptions={[]}
+          labelDisplayedRows={({ from, to, count }) =>
+            t('table.displayedRows', { from, to, count })
+          }
+          getItemAriaLabel={(type) => t(`table.${type}Page`)}
+        />
+      )}
     </div>
   );
 }

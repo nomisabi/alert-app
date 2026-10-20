@@ -16,7 +16,8 @@ describe('Auth (e2e)', () => {
   let prisma: PrismaService;
   let origin: string;
 
-  const runId = Date.now().toString(36);
+  // Time + random: test files run in parallel and can start in the same millisecond
+  const runId = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
   const emailFor = (name: string) => `e2e-${runId}-${name}@example.com`;
   const usernameFor = (name: string) => `e2e_${runId}_${name}`;
   const password = 'secret123';

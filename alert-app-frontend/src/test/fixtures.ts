@@ -1,4 +1,4 @@
-import type { AdminUser, AdminUserList, AuthUser } from '@alert-app/shared';
+import type { AdminUser, AdminUserList, AlertRule, AuthUser } from '@alert-app/shared';
 import type { Session } from '../global/utils/authApi';
 
 /** Test data for a logged-in user. Override fields as needed. */
@@ -45,4 +45,19 @@ export function testAdminUserList(
   changes: Partial<AdminUserList> = {},
 ): AdminUserList {
   return { items, total: items.length, page: 1, pageSize: 20, ...changes };
+}
+
+/** An alert rule as GET /api/alert-rules returns it. Defaults to a keyword rule. */
+export function testAlertRule(changes: Partial<AlertRule> = {}): AlertRule {
+  return {
+    id: 'rule-1',
+    name: 'EV news',
+    type: 'keywords',
+    keywords: ['electric car', 'Tesla'],
+    category: null,
+    enabled: true,
+    createdAt: '2026-10-20T09:00:00.000Z',
+    updatedAt: '2026-10-20T09:00:00.000Z',
+    ...changes,
+  };
 }

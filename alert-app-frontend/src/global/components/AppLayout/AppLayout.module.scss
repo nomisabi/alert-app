@@ -30,7 +30,26 @@
   text-decoration: none;
 }
 
+// Visually hidden below sm (screen readers still read it), visible from sm up
+.brandText {
+  position: absolute;
+  overflow: hidden;
+  width: 1px;
+  height: 1px;
+  clip-path: inset(50%);
+  white-space: nowrap;
+
+  @include up(sm) {
+    position: static;
+    overflow: visible;
+    width: auto;
+    height: auto;
+    clip-path: none;
+  }
+}
+
 .nav {
+  align-items: center;
   display: flex;
   gap: spacing(1);
   margin-left: auto;

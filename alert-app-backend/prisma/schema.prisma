@@ -24,26 +24,27 @@ enum Role {
 }
 
 model User {
-  id              String    @id
+  id              String      @id
   // Display name (free text, not unique). Better Auth calls it "name".
   name            String
-  email           String    @unique
-  emailVerified   Boolean   @default(false)
+  email           String      @unique
+  emailVerified   Boolean     @default(false)
   image           String?
   // Lowercased by the username plugin, so uniqueness is case-insensitive.
-  username        String    @unique
+  username        String      @unique
   // The username as the user typed it (set automatically by the plugin).
   displayUsername String
-  role            Role      @default(user)
+  role            Role        @default(user)
   // Admin plugin (milestone 2): "banned" = disabled by an admin. Sessions are deleted and
   // login is blocked. banReason/banExpires are required by the plugin but not used yet.
-  banned          Boolean   @default(false)
+  banned          Boolean     @default(false)
   banReason       String?
   banExpires      DateTime?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
   sessions        Session[]
   accounts        Account[]
+  alertRules      AlertRule[]
 
   @@map("user")
 }
@@ -100,4 +101,37 @@ model Verification {
 
   @@index([identifier])
   @@map("verification")
+}
+
+// ---------------------------------------------------------------------------
+// Alert rules (milestone 3)
+// ---------------------------------------------------------------------------
+
+// How a rule finds articles. Only the matching field is filled:
+// keywords → keywords is filled, category is null
+// category → category is filled, keywords is []
+enum AlertRuleType {
+  keywords
+  category
+}
+
+model AlertRule {
+  id        String        @id @default(uuid(7))
+  userId    String
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  type      AlertRuleType
+  // 1–10 keywords as the user typed them (trimmed). ALL of them must appear in the article
+  // (AND). Matching ignores case, so no lowercase copy is stored.
+  keywords  String[]      @default([])
+  // One of APP_CATEGORIES (packages/shared). Plain text, checked by the shared Zod schema,
+  // so changing the category list needs no migration.
+  category  String?
+  // Switched-off rules are kept but never matched.
+  enabled   Boolean       @default(true)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@index([userId])
+  @@map("alert_rule")
 }

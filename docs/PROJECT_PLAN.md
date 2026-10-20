@@ -56,13 +56,15 @@ Free news APIs we compared (October 2026; third-party sources disagreed on some 
   language, country). Adding a source = one adapter + one category mapping.
 - **We use our own category list** (`AppCategory` in `@alert-app/shared`), and each provider's categories are
   mapped to it (e.g. NewsData's `top` → `world`). Users never see provider-specific names.
-  Starting list: world, business, technology, science, health, sports, environment.
+  Final list (milestone 3): world, politics, business, technology, science, health, sports, environment, other
+  (other = every provider category we don't map elsewhere).
 - Articles are **de-duplicated by URL**, because sources overlap.
 
 ### Alert rules
 
-- A rule has: name, **categories**, **keywords** (matched against title and description), optional language,
-  channels, frequency and enabled. Later maybe: `matchMode` (any/all keywords).
+- A rule has: name, **keywords** (matched against title and description) **or one category** (decided in
+  milestone 3), channels, frequency and enabled. Later maybe: optional language, `matchMode` (any/all keywords),
+  keywords and category together.
 - **Our backend does the matching, not the news API.** We fetch the latest articles per category on a schedule
   and match all rules in our own database. API usage then depends only on how many categories we poll,
   not on the number of users or rules. Example: 7 categories × 24 polls/day = **168 requests**, which fits
@@ -349,8 +351,8 @@ functions (e.g. `global/utils/authApi`) with `vi.mock`, so the real hooks and qu
 | 0.5 | Frontend foundation          | Folder structure, error/404/home pages, loading, page layout, notifications              | Done (commit) |
 | 1   | Login                        | Sign up, log in, log out, protected routes, user role (Better Auth). Form field wrappers | Done (commit) |
 | 2   | Admin: users                 | List users, enable/disable, change role                                                  | Done (commit) |
-| 3   | Alert rules                  | Create, edit, delete, list own rules. Final category list + NewsData.io mapping          | **Next**      |
-| 4   | Email channel                | Connect an email address, send a test message (Resend)                                   | –             |
+| 3   | Alert rules                  | Create, edit, delete, list own rules. Final category list + NewsData.io mapping          | Done (commit) |
+| 4   | Email channel                | Connect an email address, send a test message (Resend)                                   | **Next**      |
 | 5   | First real alerts            | NewsData.io → matcher → instant email (BullMQ)                                           | –             |
 | 6   | Digests                      | Hourly and daily delivery, time zone setting                                             | –             |
 | 7   | Slack                        | Slack channel through `NotificationChannel`                                              | –             |
@@ -621,12 +623,161 @@ client / Orval setup. Later milestones: empty state (3), confirm dialog (3), dat
     list" test fails without the cache invalidation.
 - [x] 7. Wrap-up: `npm run format`, plan updated, conversation saved in `docs/claude-conversations/2-admin-users_*`, review by the developer, commit (asked for by the developer).
 
+### Milestone 3 steps (alert rules)
+
+**Scope: included**
+
+- **Final category list (9):** world, politics, business, technology, science, health, sports, environment, other.
+  Mapped to NewsData.io (17 categories, up to 5 per request):
+
+  | Our category | NewsData.io                                                                    |
+  | ------------ | ------------------------------------------------------------------------------ |
+  | world        | `world`, `top`                                                                 |
+  | politics     | `politics`, `domestic`                                                         |
+  | business     | `business`                                                                     |
+  | technology   | `technology`                                                                   |
+  | science      | `science`                                                                      |
+  | health       | `health`                                                                       |
+  | sports       | `sports`                                                                       |
+  | environment  | `environment`                                                                  |
+  | other        | `crime`, `education`, `entertainment`, `food`, `lifestyle`, `tourism`, `other` |
+  - **"Other" catches every NewsData.io category not mapped above** (decided with the developer), so no news is lost.
+  - Quota: the 8 main categories need one request each, "other" needs 2 (7 NewsData categories, max 5 per request).
+    Hourly polling = 10 × 24 = **240 requests/day, above the ~200/day free limit.** Accepted for now: when the
+    quota runs out, we simply get less data that day. Polling details (interval, order) are decided in milestone 5.
+  - The mapping lives in a backend file now and is used by the NewsData adapter in milestone 5.
+    `GET /api/categories` returns the list, so the frontend loads it from the API.
+
+- **A rule is keyword-based or category-based** (decided with the developer, can change later):
+  - **Keywords:** 1–10 keywords, each 2–50 characters, matched case-insensitively as whole words against title and
+    description of all fetched articles. **All keywords must appear (AND).** OR (`matchMode`) can be added later if
+    the product team asks.
+  - **Category:** exactly one category, matches every article in it.
+  - Every rule also has a **name** and **enabled** (on/off).
+- **Page:** `/alerts` (own rules: name, keywords or category, on/off switch, edit, delete; table on desktop, cards
+  on mobile). **Create and edit in a dialog** (decided with the developer in step 3; full screen on phones).
+- Delete asks first (`ConfirmDialog`). New `EmptyState` component in `global/`. "My alerts" link in the AppBar.
+- **Ownership:** users only see and change their own rules. Another user's rule → 404 (403 would reveal it exists).
+- Max **20 rules per user** (no pagination needed).
+- **API:** `GET /api/categories`, `GET`/`POST /api/alert-rules`, `GET`/`PATCH`/`DELETE /api/alert-rules/:id`.
+
+**Scope: left out**
+
+- Channels (milestones 4/7: the form gets a channel picker then). Frequency (milestone 6: every rule is "instant"
+  until then). Language filter (milestone 5: depends on what we fetch). Matching (milestone 5). `matchMode`
+  (any/all keywords), keywords + category together (later). Admin view of all rules (milestone 8).
+
+**Steps**
+
+- [x] 0. Scope
+- [x] 1. Model: `AlertRule` (`id` uuid v7, `userId`, `name`, `type` enum `keywords | category`, `keywords String[]`,
+      `category String?`, `enabled`, timestamps), `User.alertRules`. Migration runs in step 4.
+  - `type` says which field is used, so the matcher, list and form switch on it.
+  - Keywords as a Postgres array (`text[]`), not a separate table: always read/saved with the rule, max 10.
+  - `category` is text checked by the shared Zod schema, not a Postgres enum: the list changes, and removing an enum
+    value in Postgres is painful.
+  - uuid v7 ids: not guessable in URLs, and sorted by creation time (index-friendly).
+  - Limits (name/keyword length, 20 rules per user) and "only the field matching `type`" are checked in Zod and the
+    service, not in the database (Prisma has no `CHECK` constraints in the schema).
+- [x] 2. API contract. Schemas: `packages/shared/src/schemas/alert-rules.ts` + `schemas/categories.ts`, constants:
+      `constants/alert-rules.ts` + `constants/categories.ts` (now 9 categories). All endpoints need a login (401).
+
+  | Endpoint                      | Request                       | Success                                    | Errors                                                  |
+  | ----------------------------- | ----------------------------- | ------------------------------------------ | ------------------------------------------------------- |
+  | `GET /api/categories`         | –                             | 200 `{ items: [{ id }] }`, display order   | –                                                       |
+  | `GET /api/alert-rules`        | –                             | 200 `{ items: AlertRule[] }`, newest first | –                                                       |
+  | `GET /api/alert-rules/:id`    | –                             | 200 `AlertRule`                            | 404 `ALERT_RULE_NOT_FOUND`                              |
+  | `POST /api/alert-rules`       | body `CreateAlertRuleRequest` | 201 `AlertRule`                            | 400 `VALIDATION_FAILED`, 400 `ALERT_RULE_LIMIT_REACHED` |
+  | `PATCH /api/alert-rules/:id`  | body `UpdateAlertRuleRequest` | 200 `AlertRule`                            | 400 `VALIDATION_FAILED`, 404 `ALERT_RULE_NOT_FOUND`     |
+  | `DELETE /api/alert-rules/:id` | –                             | 204 (no body)                              | 404 `ALERT_RULE_NOT_FOUND`                              |
+  - `AlertRule`: `id, name, type, keywords` (`[]` for category rules), `category` (`null` for keyword rules),
+    `enabled, createdAt, updatedAt` (ISO strings). Flat, like the database row.
+  - **Another user's rule, an unknown id and a malformed id all give the same 404.**
+  - `GET /api/categories` returns ids only (the frontend translates them) and **needs a login** (decided with the
+    developer). Objects (`{ id }`), so fields can be added later without breaking the API.
+  - Create body is a **discriminated union** on `type`: `{ type: 'keywords', name, keywords, enabled? }` or
+    `{ type: 'category', name, category, enabled? }`. Unknown fields (e.g. `keywords` on a category rule) are dropped.
+    The create/edit form uses the same schema.
+  - **One `PATCH`** (like milestone 2), all fields optional: the switch sends `{ enabled }`, the edit form sends
+    everything. `type` requires its field; the backend clears the other one. `keywords`/`category` without `type` → 400.
+  - Rules: name required, trimmed, max 60. Keywords 1–10, no duplicates (ignoring case), each trimmed, 2–50
+    characters, **phrases with spaces allowed** ("electric car", matched as a whole). Category: one of the 9.
+    Single-keyword errors are reported on the `keywords` field (one message under the input, not `keywords.3`).
+  - Validation texts in `i18n/validation.en.ts` (groups `alertRuleName`, `alertRuleType`, `keywords`, `keyword`,
+    `category`). The NewsData.io mapping is backend-only (step 4).
+  - OperationIds (= Orval hook names): `getCategories`, `getAlertRules`, `getAlertRule`, `createAlertRule`,
+    `updateAlertRule`, `deleteAlertRule`.
+
+- [x] 3. Frontend UI: `/alerts` (`AlertRulesPage`) with `AlertRuleDialog` (create/edit) and `KeywordsField`,
+      `EmptyState` in `global/components/`, "My alerts" link in the AppBar, `alerts` translations + category names
+      in `common`. Runs on temporary sample data (`pages/AlertRules/sampleAlertRules.ts`, deleted in step 5).
+  - List: name, "Finds news by" (keyword chips with "All of:", or the category chip), on/off switch (saves at once,
+    **only in the list**, not in the form), edit and delete as **icon buttons** with tooltips. Delete asks first.
+    At 20 rules "New alert" is disabled with a hint. Empty list → `EmptyState` with "Create your first alert".
+  - Dialog: name, "Find news by" (radio: keywords / category), then the chips input or the category select. Both
+    values stay in the form while switching, only the selected one is sent. New alerts start switched on.
+  - Keywords: MUI `Autocomplete` (`multiple` + `freeSolo`): Enter adds a chip, text not added yet is added when
+    leaving the field. An **info button with a tooltip** explains how to use it (a tap opens it on touch screens).
+  - Shared `alertRuleFormSchema`: the form shape (keywords + category) piped into the create schema, so the form
+    checks exactly what the API checks and submits the request body.
+  - Small changes to global pieces: `DataTable` pagination is optional (`pagination` prop), field error
+    translation moved to `global/utils/fieldError.ts` (used by `FormTextField` and `KeywordsField`),
+    `FormTextField` accepts forms whose schema changes the values' shape. The AppBar hides the "Alert App" text on
+    phones (still read by screen readers) to make room for "My alerts".
+- [x] 4. Backend: migration `alert_rules`, `AlertRulesController` + `AlertRulesService` (`src/alert-rules/`),
+      `CategoriesController` (`src/categories/`), NewsData.io mapping (`src/news-sources/newsdata/newsdata-categories.ts`),
+      error texts, OpenAPI schemas. Checked with curl: categories, empty list, create both types (trimmed, extra
+      field dropped, `enabled: false` kept), validation errors (no type, short keyword, `top` as category, duplicate
+      ignoring case), list newest first, get, patch `enabled`, patch keywords → category (keywords cleared), patch
+      type without its field / keywords without type (400), another user's rule (404 for get/patch/delete, their
+      list empty), malformed id (404), 401, delete (204, then 404), 21st rule (`ALERT_RULE_LIMIT_REACHED`).
+  - Ownership: every query filters by `userId` (`findFirst({ id, userId })`, `deleteMany({ id, userId })`), so
+    another user's rule is simply "not found".
+  - The 20-rule limit: count + create in one transaction. Two requests at the very same moment could still both
+    pass; acceptable for this limit.
+  - `toAppCategory()` maps a NewsData.io category to ours; unknown ones become `other`. Used in milestone 5.
+  - A category stored in the database that is no longer in our list is returned as `other`.
+  - Frontend: a duplicate keyword (ignoring case) is no longer ignored silently: "“tesla” is already in the list."
+    under the field (read out by screen readers). The typed text stays so it can be corrected.
+  - **Bug found in the e2e tests (from milestone 2):** both test files got the same `runId` (`Date.now()`, files
+    start in the same millisecond), so one file's cleanup deleted the other's admin → 5 tests failed with 401 when
+    run together. `runId` now has a random part.
+- [x] 5. Connect: Orval hooks regenerated (`api/generated/alert-rules/`, `api/generated/categories/`), our hooks
+      `useAlertRules`, `useCreateAlertRule`, `useUpdateAlertRule`, `useDeleteAlertRule` (`api/alert-rules/`) and
+      `useCategories` (`api/categories/`), sample data deleted.
+  - Every change reloads the list (`invalidateQueries`). `useUpdateAlertRule` also puts the server's answer into
+    the cached list first, so the on/off switch doesn't jump back while the list reloads.
+  - `useCategories` returns the ids (`select`) and loads them once per visit (`staleTime: Infinity`).
+  - The dialog awaits `mutateAsync`: server errors appear under their field (e.g. the limit message above the
+    button), the page closes the dialog and shows the message on success.
+  - The empty state only shows once the list has loaded (no flash while loading). `GET /api/alert-rules/:id`
+    (`getAlertRule`) is not used by the page: the edit dialog takes the rule from the list.
+- [x] 6. Tests: shared 35 (+16: create/update/form schemas, every alert rule error key has a text), backend 25
+      unit (+5: NewsData.io mapping) + 33 e2e (+13 in `alert-rules.e2e-spec.ts`), frontend 79 (+17:
+      `AlertRulesPage`, `EmptyState`, `DataTable` without pagination, "My alerts" link).
+  - Backend e2e: login needed everywhere (401), categories in order, create both types (trimmed, other field and
+    `userId` in the body dropped), validation errors, the 20-rule limit (19 rules inserted directly, then the 20th
+    and 21st through the API), list only own rules newest first, a removed category returned as `other`, `PATCH`
+    only the sent fields, type switch clears the other field, type without its field, delete 204 → 404,
+    another user's rule 404 for get/patch/delete (same as an unknown id) and left unchanged.
+  - Mapping: every NewsData.io category is mapped exactly once, every one of ours has an entry, `top` → `world`,
+    unknown → `other`.
+  - Frontend page tests fake `orvalFetch` with a small in-memory backend (keeps the rules, so reloads show the
+    change): list (chips, category, switch), empty state, load error + "Try again", create both types (exact
+    `POST` bodies, keyword added with Enter and on blur, categories from the API), form errors without a request,
+    duplicate keyword message, tooltip, server error kept in the open dialog, edit with type switch (exact `PATCH`
+    body), on/off switch, delete after asking (Cancel focused), "New alert" disabled at 20.
+  - Checked that two tests really catch bugs: the "another user's rule" e2e test fails without the `userId`
+    filter, and the duplicate keyword test fails without the duplicate check.
+- [ ] 7. Wrap-up: `npm run format`, plan updated, conversation saved in `docs/claude-conversations/3-alert-rules_*`, review by the developer, commit by the developer.
+
 ---
 
 ## Open questions
 
 - **Slack:** incoming webhook or Slack app (OAuth)? Decide in milestone 7 after research.
-- **Final category list** and its mapping to NewsData.io categories (milestone 3).
+- **Polling vs. quota:** 9 categories need ~240 requests/day at hourly polling, above NewsData.io's ~200/day.
+  Choose the interval/order (or a paid plan) in milestone 5.
 - **Hosting and deployment** (e.g. Railway/Render/Fly.io for the backend, Vercel/Netlify for the frontend).
 - **Verify before launch:** NewsData.io and Resend free-tier terms on their official pricing pages.
 - Later: other alert types from the brief (market movements, natural disasters), e.g. Finnhub/Alpha Vantage

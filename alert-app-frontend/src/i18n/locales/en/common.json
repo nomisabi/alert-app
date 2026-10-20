@@ -4,6 +4,20 @@
     "pageTitle": "{{page}} · Alert App",
     "skipToContent": "Skip to main content"
   },
+  "nav": {
+    "myAlerts": "My alerts"
+  },
+  "categories": {
+    "world": "World",
+    "politics": "Politics",
+    "business": "Business",
+    "technology": "Technology",
+    "science": "Science",
+    "health": "Health",
+    "sports": "Sports",
+    "environment": "Environment",
+    "other": "Other"
+  },
   "loading": "Loading…",
   "notifications": {
     "close": "Close"

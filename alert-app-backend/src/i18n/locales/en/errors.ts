@@ -1,3 +1,5 @@
+import { ALERT_RULES_PER_USER_MAX } from '@alert-app/shared';
+
 /**
  * Texts for API error codes (the `errors` i18n namespace). The key is the `code` in the error response.
  * Codes without a text here fall back to the text for their HTTP status (see i18n.ts).
@@ -18,6 +20,8 @@ export const errorsEn = {
   USER_NOT_FOUND: 'This user does not exist.',
   CANNOT_CHANGE_OWN_ROLE: "You can't change your own role.",
   CANNOT_DISABLE_SELF: "You can't disable your own account.",
+  ALERT_RULE_NOT_FOUND: 'This alert does not exist.',
+  ALERT_RULE_LIMIT_REACHED: `You can have at most ${ALERT_RULES_PER_USER_MAX} alerts. Delete one to add another.`,
 
   // Better Auth
   INVALID_EMAIL_OR_PASSWORD: 'Invalid email or password.',
