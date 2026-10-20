@@ -69,6 +69,8 @@ const redactions = [
   [gitEmail, '<your-email>'],
   [gitName, '<your-name>'],
   [username, '<user>'],
+  // Windows' short (8.3) form of the user folder in temp paths, e.g. "C:/Users/JOHNDO~1/AppData"
+  [`${username.replace(/\s/g, '').slice(0, 6)}~1`, '<user>'],
   ...gitName.split(/\s+/).map((part) => [part, '<your-name>']),
   ...[...new Set(entries.map((e) => e.sessionId))].map((id) => [id, '<session-id>']),
 ]

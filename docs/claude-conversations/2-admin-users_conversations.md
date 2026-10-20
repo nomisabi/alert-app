@@ -607,7 +607,7 @@ Port 3000 is already in use, so you probably have the backend running already. W
 Your running backend already has the new endpoints and schemas. Next I'll run a curl scenario with two throwaway users, deleted at the end:
 
 - 🔧 Read Postgres settings from compose file
-- 📝 Wrote `../../../../SZABO-~1/AppData/Local/Temp/claude/c--Users-<user>-Documents-apps-alert-app/<session-id>/scratchpad/check-admin.sh`
+- 📝 Wrote `../../../../<user>/AppData/Local/Temp/claude/c--Users-<user>-Documents-apps-alert-app/<session-id>/scratchpad/check-admin.sh`
 - 🔧 Run the admin endpoints check scenario
 - ✏️ Edited `alert-app-backend/src/admin/admin-users.service.ts`
 - ✏️ Edited `alert-app-backend/src/admin/admin-users.service.ts`
